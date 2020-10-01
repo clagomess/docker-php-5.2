@@ -35,7 +35,7 @@ RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclie
 
 # php
 # ./configure --help
-RUN apt install flex libpq-dev libgd-dev libcurl4-openssl-dev libmcrypt-dev -y
+RUN apt install flex libtool libpq-dev libgd-dev libcurl4-openssl-dev libmcrypt-dev -y
 
 RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ \
 && ln -s /usr/lib/x86_64-linux-gnu/libpng.so /usr/lib/ \
@@ -79,6 +79,19 @@ RUN cd /srv/php-5.2.17 \
 && make -j4 \
 && make install \
 && cp php.ini-dist /usr/local/lib/php.ini
+
+# php xdebug
+RUN pecl channel-update pecl.php.net
+RUN pecl install xdebug-2.2.7
+RUN echo "zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so" >> /usr/local/lib/php.ini \
+&& echo "xdebug.remote_enable=1" >> /usr/local/lib/php.ini \
+&& echo "xdebug.remote_handler=dbgp" >> /usr/local/lib/php.ini \
+&& echo "xdebug.remote_mode=req" >> /usr/local/lib/php.ini \
+&& echo "xdebug.remote_host=host.docker.internal" >> /usr/local/lib/php.ini \
+&& echo "xdebug.remote_port=9000" >> /usr/local/lib/php.ini \
+&& echo "xdebug.remote_autostart=1" >> /usr/local/lib/php.ini \
+&& echo "xdebug.extended_info=1" >> /usr/local/lib/php.ini \
+&& echo "xdebug.remote_connect_back = 0" >> /usr/local/lib/php.ini
 
 # config httpd
 RUN echo "AddType application/x-httpd-php .php .phtml" >> /usr/local/apache2/conf/httpd.conf \
