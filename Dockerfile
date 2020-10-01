@@ -93,10 +93,18 @@ RUN echo "zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613
 && echo "xdebug.extended_info=1" >> /usr/local/lib/php.ini \
 && echo "xdebug.remote_connect_back = 0" >> /usr/local/lib/php.ini
 
+# config php
+RUN echo "date.timezone = America/Sao_Paulo" >> /usr/local/lib/php.ini \
+&& echo "short_open_tag=On" >> /usr/local/lib/php.ini \
+&& echo "display_errors = On" >> /usr/local/lib/php.ini \
+&& echo "error_reporting = E_ALL & ~E_DEPRECATED & ~E_NOTICE" >> /usr/local/lib/php.ini
+
 # config httpd
 RUN echo "AddType application/x-httpd-php .php .phtml" >> /usr/local/apache2/conf/httpd.conf \
 && echo "User www-data" >> /usr/local/apache2/conf/httpd.conf \
-&& echo "Group www-data" >> /usr/local/apache2/conf/httpd.conf
+&& echo "Group www-data" >> /usr/local/apache2/conf/httpd.conf \
+&& sed -i -- "s/AllowOverride None/AllowOverride All/g" /usr/local/apache2/conf/httpd.conf \
+&& sed -i -- "s/AllowOverride none/AllowOverride All/g" usr/local/apache2/conf/httpd.conf
 
 RUN ln -sf /dev/stdout /usr/local/apache2/logs/access_log \
 && ln -sf /dev/stderr /usr/local/apache2/logs/error_log
