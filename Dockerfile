@@ -27,11 +27,13 @@ RUN cd /srv/libxml2-2.8.0 \
 
 # php
 # ./configure --help
-RUN apt install flex libpq-dev -y
+RUN apt install flex libpq-dev libgd-dev -y
+RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ ln -s /usr/lib/x86_64-linux-gnu/libpng.so /usr/lib/
 RUN cd /srv/php-5.2.17 \
 && ./configure --with-apxs2=/usr/local/apache2/bin/apxs \
 --with-pgsql \
---with-pdo-pgsql
+--with-pdo-pgsql \
+--with-gd
 RUN cd /srv/php-5.2.17 \
 && make -j4 \
 && make install \
