@@ -14,7 +14,7 @@ RUN cd /srv && tar -xzf libxml2-2.8.0.tar.gz
 
 # httpd
 RUN cd /srv/httpd-2.2.3 \
-&& ./configure --enable-so \
+&& ./configure --enable-so --enable-rewrite \
 && make -j4 \
 && make install
 
