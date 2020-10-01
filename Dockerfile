@@ -27,7 +27,7 @@ RUN cd /srv/libxml2-2.8.0 \
 
 # php
 # ./configure --help
-RUN apt install flex libpq-dev libgd-dev libcurl4-openssl-dev -y
+RUN apt install flex libpq-dev libgd-dev libcurl4-openssl-dev libmcrypt-dev -y
 RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ \
 && ln -s /usr/lib/x86_64-linux-gnu/libpng.so /usr/lib/ \
 && ln -s /usr/include/x86_64-linux-gnu/curl /usr/include/curl
@@ -37,7 +37,9 @@ RUN cd /srv/php-5.2.17 \
 --with-pdo-pgsql \
 --with-gd \
 --with-curl \
---enable-soap
+--enable-soap \
+--with-mcrypt
+
 RUN cd /srv/php-5.2.17 \
 && make -j4 \
 && make install \
