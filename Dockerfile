@@ -25,6 +25,14 @@ RUN cd /srv/libxml2-2.8.0 \
 && make install \
 && ldconfig
 
+# oracle
+RUN apt install unzip libaio-dev -y && mkdir /opt/oracle
+RUN wget http://cloud.gomespro.com.br/instant-client-11/instantclient-basic-linux.x64-11.2.0.4.0.zip -P /opt/oracle
+RUN wget http://cloud.gomespro.com.br/instant-client-11/instantclient-sdk-linux.x64-11.2.0.4.0.zip -P /opt/oracle
+RUN unzip /opt/oracle/instantclient-basic-linux.x64-11.2.0.4.0.zip -d /opt/oracle
+RUN unzip /opt/oracle/instantclient-sdk-linux.x64-11.2.0.4.0.zip -d /opt/oracle
+RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
+
 # php
 # ./configure --help
 RUN apt install flex libpq-dev libgd-dev libcurl4-openssl-dev libmcrypt-dev -y
@@ -32,7 +40,11 @@ RUN apt install flex libpq-dev libgd-dev libcurl4-openssl-dev libmcrypt-dev -y
 RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ \
 && ln -s /usr/lib/x86_64-linux-gnu/libpng.so /usr/lib/ \
 && ln -s /usr/include/x86_64-linux-gnu/curl /usr/include/curl \
-&& ln -s /usr/lib/x86_64-linux-gnu/libldap.so /usr/lib/
+&& ln -s /usr/lib/x86_64-linux-gnu/libldap.so /usr/lib/ \
+&& ln -s /opt/oracle/instantclient_11_2/libclntsh.so.11.1 /opt/oracle/instantclient_11_2/libclntsh.so \
+&& mkdir /opt/oracle/client \
+&& ln -s /opt/oracle/instantclient_11_2/sdk/include /opt/oracle/client/include \
+&& ln -s /opt/oracle/instantclient_11_2 /opt/oracle/client/lib
 
 RUN cd /srv/php-5.2.17 \
 && ./configure --with-apxs2=/usr/local/apache2/bin/apxs \
@@ -59,6 +71,8 @@ RUN cd /srv/php-5.2.17 \
 --with-gettext \
 --with-mime-magic \
 #--with-ldap \ @TODO: deprec error libldap2-dev; compile source
+--with-oci8=instantclient,/opt/oracle/instantclient_11_2 \
+--with-pdo-oci=instantclient,/opt/oracle,11.2 \
 --with-ttf
 
 RUN cd /srv/php-5.2.17 \
