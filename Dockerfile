@@ -27,9 +27,12 @@ RUN cd /srv/libxml2-2.8.0 \
 
 # php
 # ./configure --help
-RUN apt install flex -y
+RUN apt install flex libpq-dev -y
 RUN cd /srv/php-5.2.17 \
 && ./configure --with-apxs2=/usr/local/apache2/bin/apxs \
+--with-pgsql \
+--with-pdo-pgsql
+RUN cd /srv/php-5.2.17 \
 && make -j4 \
 && make install \
 && cp php.ini-dist /usr/local/lib/php.ini
