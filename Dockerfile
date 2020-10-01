@@ -36,7 +36,8 @@ RUN cd /srv/php-5.2.17 \
 --with-pgsql \
 --with-pdo-pgsql \
 --with-gd \
---with-curl
+--with-curl \
+--enable-soap
 RUN cd /srv/php-5.2.17 \
 && make -j4 \
 && make install \
