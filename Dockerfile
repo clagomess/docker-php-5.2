@@ -28,9 +28,12 @@ RUN cd /srv/libxml2-2.8.0 \
 # php
 # ./configure --help
 RUN apt install flex libpq-dev libgd-dev libcurl4-openssl-dev libmcrypt-dev -y
+
 RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ \
 && ln -s /usr/lib/x86_64-linux-gnu/libpng.so /usr/lib/ \
-&& ln -s /usr/include/x86_64-linux-gnu/curl /usr/include/curl
+&& ln -s /usr/include/x86_64-linux-gnu/curl /usr/include/curl \
+&& ln -s /usr/lib/x86_64-linux-gnu/libldap.so /usr/lib/
+
 RUN cd /srv/php-5.2.17 \
 && ./configure --with-apxs2=/usr/local/apache2/bin/apxs \
 --with-pgsql \
@@ -51,7 +54,12 @@ RUN cd /srv/php-5.2.17 \
 --enable-sysvsem \
 --enable-sysvshm \
 --enable-wddx \
---enable-dba
+--enable-dba \
+#--with-openssl \ @TODO: deprec error libssl-dev; compile source
+--with-gettext \
+--with-mime-magic \
+#--with-ldap \ @TODO: deprec error libldap2-dev; compile source
+--with-ttf
 
 RUN cd /srv/php-5.2.17 \
 && make -j4 \
