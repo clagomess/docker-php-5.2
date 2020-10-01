@@ -38,7 +38,20 @@ RUN cd /srv/php-5.2.17 \
 --with-gd \
 --with-curl \
 --enable-soap \
---with-mcrypt
+--with-mcrypt \
+--enable-mbstring \
+--enable-calendar \
+--enable-bcmath \
+--enable-zip \
+--enable-exif \
+--enable-ftp \
+--enable-shmop \
+--enable-sockets \
+--enable-sysvmsg \
+--enable-sysvsem \
+--enable-sysvshm \
+--enable-wddx \
+--enable-dba
 
 RUN cd /srv/php-5.2.17 \
 && make -j4 \
