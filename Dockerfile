@@ -73,7 +73,8 @@ RUN cd /srv/php-5.2.17 \
 #--with-ldap \ @TODO: deprec error libldap2-dev; compile source
 --with-oci8=instantclient,/opt/oracle/instantclient_11_2 \
 --with-pdo-oci=instantclient,/opt/oracle,11.2 \
---with-ttf
+--with-ttf \
+--with-zlib
 
 RUN cd /srv/php-5.2.17 \
 && make -j4 \
