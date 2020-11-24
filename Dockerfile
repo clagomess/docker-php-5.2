@@ -12,6 +12,14 @@ RUN cd /srv && tar -xzf httpd-2.2.3.tar.gz
 RUN cd /srv && tar -xzf php-5.2.17.tar.gz
 RUN cd /srv && tar -xzf libxml2-2.8.0.tar.gz
 
+# oracle
+RUN apt install unzip libaio-dev -y && mkdir /opt/oracle
+RUN wget http://cloud.gomespro.com.br/instant-client-11/instantclient-basic-linux.x64-11.2.0.4.0.zip -P /opt/oracle
+RUN wget http://cloud.gomespro.com.br/instant-client-11/instantclient-sdk-linux.x64-11.2.0.4.0.zip -P /opt/oracle
+RUN unzip /opt/oracle/instantclient-basic-linux.x64-11.2.0.4.0.zip -d /opt/oracle
+RUN unzip /opt/oracle/instantclient-sdk-linux.x64-11.2.0.4.0.zip -d /opt/oracle
+RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
+
 # httpd
 RUN cd /srv/httpd-2.2.3 \
 && ./configure --enable-so --enable-rewrite \
@@ -24,14 +32,6 @@ RUN cd /srv/libxml2-2.8.0 \
 && make -j4 \
 && make install \
 && ldconfig
-
-# oracle
-RUN apt install unzip libaio-dev -y && mkdir /opt/oracle
-RUN wget http://cloud.gomespro.com.br/instant-client-11/instantclient-basic-linux.x64-11.2.0.4.0.zip -P /opt/oracle
-RUN wget http://cloud.gomespro.com.br/instant-client-11/instantclient-sdk-linux.x64-11.2.0.4.0.zip -P /opt/oracle
-RUN unzip /opt/oracle/instantclient-basic-linux.x64-11.2.0.4.0.zip -d /opt/oracle
-RUN unzip /opt/oracle/instantclient-sdk-linux.x64-11.2.0.4.0.zip -d /opt/oracle
-RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
 
 # php
 # ./configure --help
