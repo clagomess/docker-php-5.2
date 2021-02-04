@@ -88,7 +88,7 @@ RUN echo "zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613
 && echo "xdebug.remote_enable=1" >> /usr/local/lib/php.ini \
 && echo "xdebug.remote_handler=dbgp" >> /usr/local/lib/php.ini \
 && echo "xdebug.remote_mode=req" >> /usr/local/lib/php.ini \
-&& echo "xdebug.remote_host=172.17.0.1" >> /usr/local/lib/php.ini \
+&& echo "xdebug.remote_host=host.docker.internal" >> /usr/local/lib/php.ini \
 && echo "xdebug.remote_port=9000" >> /usr/local/lib/php.ini \
 && echo "xdebug.remote_autostart=1" >> /usr/local/lib/php.ini \
 && echo "xdebug.extended_info=1" >> /usr/local/lib/php.ini \
@@ -109,5 +109,10 @@ RUN echo "AddType application/x-httpd-php .php .phtml" >> /usr/local/apache2/con
 && sed -i -- "s/AllowOverride none/AllowOverride All/g" /usr/local/apache2/conf/httpd.conf \
 && sed -i -- "s/DirectoryIndex index.html/DirectoryIndex index.html index.php/g" /usr/local/apache2/conf/httpd.conf
 
+# config OpenSSL
+RUN sed -i -- "s/CipherString = DEFAULT@SECLEVEL=2/CipherString = DEFAULT@SECLEVEL=1/g" /usr/lib/ssl/openssl.cnf \
+&& sed -i -- "s/MinProtocol = TLSv1.2/MinProtocol = TLSv1.0/g" /usr/lib/ssl/openssl.cnf
+
+# config stdlog
 RUN ln -sf /dev/stdout /usr/local/apache2/logs/access_log \
 && ln -sf /dev/stderr /usr/local/apache2/logs/error_log
