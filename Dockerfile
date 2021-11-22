@@ -74,6 +74,9 @@ RUN cd /srv/php-5.2.17 \
 --with-oci8=instantclient,/opt/oracle/instantclient_11_2 \
 --with-pdo-oci=instantclient,/opt/oracle,11.2 \
 --with-ttf \
+--with-png-dir=/usr \
+--with-jpeg-dir=/usr \
+--with-freetype-dir=/usr \
 --with-zlib
 
 RUN cd /srv/php-5.2.17 \
