@@ -87,21 +87,33 @@ RUN cd /srv/php-5.2.17 \
 # php xdebug
 RUN pecl channel-update pecl.php.net
 RUN pecl install xdebug-2.2.7
-RUN echo "zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so" >> /usr/local/lib/php.ini \
-&& echo "xdebug.remote_enable=1" >> /usr/local/lib/php.ini \
-&& echo "xdebug.remote_handler=dbgp" >> /usr/local/lib/php.ini \
-&& echo "xdebug.remote_mode=req" >> /usr/local/lib/php.ini \
-&& echo "xdebug.remote_host=host.docker.internal" >> /usr/local/lib/php.ini \
-&& echo "xdebug.remote_port=9000" >> /usr/local/lib/php.ini \
-&& echo "xdebug.remote_autostart=1" >> /usr/local/lib/php.ini \
-&& echo "xdebug.extended_info=1" >> /usr/local/lib/php.ini \
-&& echo "xdebug.remote_connect_back = 0" >> /usr/local/lib/php.ini
-
-# config php
-RUN echo "date.timezone = America/Sao_Paulo" >> /usr/local/lib/php.ini \
-&& echo "short_open_tag=On" >> /usr/local/lib/php.ini \
-&& echo "display_errors = On" >> /usr/local/lib/php.ini \
-&& echo "error_reporting = E_ALL & ~E_DEPRECATED & ~E_NOTICE" >> /usr/local/lib/php.ini \
+RUN pecl install zendopcache-7.0.5
+RUN echo '\n\
+zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613/opcache.so\n\
+opcache.memory_consumption=128\n\
+opcache.interned_strings_buffer=8\n\
+opcache.max_accelerated_files=4000\n\
+opcache.revalidate_freq=60\n\
+opcache.fast_shutdown=1\n\
+opcache.enable_cli=1\n\
+\n\
+zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so\n\
+xdebug.remote_enable=1\n\
+xdebug.remote_handler=dbgp\n\
+xdebug.remote_mode=req\n\
+xdebug.remote_host=host.docker.internal\n\
+xdebug.remote_port=9000\n\
+xdebug.remote_autostart=1\n\
+xdebug.extended_info=1\n\
+xdebug.remote_connect_back = 0\n\
+\n\
+date.timezone = America/Sao_Paulo\n\
+short_open_tag=On\n\
+display_errors = On\n\
+error_reporting = E_ALL & ~E_DEPRECATED & ~E_NOTICE\n\
+log_errors = On\n\
+error_log = /usr/local/apache2/logs/error_log\n\
+' >> /usr/local/lib/php.ini \
 && sed -i -- "s/magic_quotes_gpc = On/magic_quotes_gpc = Off/g" /usr/local/lib/php.ini
 
 # config httpd
