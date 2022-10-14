@@ -1,8 +1,8 @@
 FROM debian:10
 
-RUN apt update
-RUN apt install build-essential -y
-RUN apt install vim wget -y
+RUN apt update \
+&& apt install build-essential -y \
+&& apt install vim wget locales -y
 
 # sources
 RUN wget http://archive.apache.org/dist/httpd/httpd-2.2.3.tar.gz -P /srv
@@ -127,6 +127,12 @@ RUN echo "AddType application/x-httpd-php .php .phtml" >> /usr/local/apache2/con
 # config OpenSSL
 RUN sed -i -- "s/CipherString = DEFAULT@SECLEVEL=2/CipherString = DEFAULT@SECLEVEL=1/g" /usr/lib/ssl/openssl.cnf \
 && sed -i -- "s/MinProtocol = TLSv1.2/MinProtocol = TLSv1.0/g" /usr/lib/ssl/openssl.cnf
+
+# add locale
+RUN locale-gen pt_BR.UTF-8 \
+&& echo "locales locales/locales_to_be_generated multiselect pt_BR.UTF-8 UTF-8" | debconf-set-selections \
+&& rm /etc/locale.gen \
+&& dpkg-reconfigure --frontend noninteractive locales
 
 # config stdlog
 RUN ln -sf /dev/stdout /usr/local/apache2/logs/access_log \
