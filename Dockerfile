@@ -117,12 +117,23 @@ error_log = /usr/local/apache2/logs/error_log\n\
 && sed -i -- "s/magic_quotes_gpc = On/magic_quotes_gpc = Off/g" /usr/local/lib/php.ini
 
 # config httpd
-RUN echo "AddType application/x-httpd-php .php .phtml" >> /usr/local/apache2/conf/httpd.conf \
-&& echo "User www-data" >> /usr/local/apache2/conf/httpd.conf \
-&& echo "Group www-data" >> /usr/local/apache2/conf/httpd.conf \
+RUN echo '\n\
+AddType application/x-httpd-php .php .phtml\n\
+User www-data\n\
+Group www-data\n\
+Alias "/opcache" "/srv/opcache"\n\
+<Directory "/srv/opcache">\n\
+    Allow from all\n\
+</Directory>\n\
+' >> /usr/local/apache2/conf/httpd.conf \
 && sed -i -- "s/AllowOverride None/AllowOverride All/g" /usr/local/apache2/conf/httpd.conf \
 && sed -i -- "s/AllowOverride none/AllowOverride All/g" /usr/local/apache2/conf/httpd.conf \
 && sed -i -- "s/DirectoryIndex index.html/DirectoryIndex index.html index.php/g" /usr/local/apache2/conf/httpd.conf
+
+RUN mkdir /srv/opcache \
+&& wget https://raw.githubusercontent.com/rlerdorf/opcache-status/master/opcache.php -P /srv/opcache \
+&& mv /srv/opcache/opcache.php /srv/opcache/index.php \
+&& chown -R www-data:www-data /srv/opcache
 
 # config OpenSSL
 RUN sed -i -- "s/CipherString = DEFAULT@SECLEVEL=2/CipherString = DEFAULT@SECLEVEL=1/g" /usr/lib/ssl/openssl.cnf \
