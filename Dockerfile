@@ -93,7 +93,7 @@ zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613/opcache.s
 opcache.memory_consumption=128\n\
 opcache.interned_strings_buffer=8\n\
 opcache.max_accelerated_files=4000\n\
-opcache.revalidate_freq=60\n\
+opcache.revalidate_freq=2\n\
 opcache.fast_shutdown=1\n\
 opcache.enable_cli=1\n\
 \n\
