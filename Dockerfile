@@ -69,7 +69,7 @@ RUN cd /srv/php-5.2.17 \
 --enable-dba \
 #--with-openssl \ @TODO: deprec error libssl-dev; compile source
 --with-gettext \
---with-mime-magic \
+--with-mime-magic=/usr/local/apache2/conf/magic \
 #--with-ldap \ @TODO: deprec error libldap2-dev; compile source
 --with-oci8=instantclient,/opt/oracle/instantclient_11_2 \
 --with-pdo-oci=instantclient,/opt/oracle,11.2 \
