@@ -4,34 +4,36 @@ RUN apt update \
 && apt install build-essential -y \
 && apt install vim wget locales -y
 
-# sources
-RUN wget http://archive.apache.org/dist/httpd/httpd-2.2.3.tar.gz -P /srv
-RUN wget http://museum.php.net/php5/php-5.2.17.tar.gz -P /srv
-RUN wget ftp://xmlsoft.org/libxml2/libxml2-2.8.0.tar.gz -P /srv
-RUN cd /srv && tar -xzf httpd-2.2.3.tar.gz
-RUN cd /srv && tar -xzf php-5.2.17.tar.gz
-RUN cd /srv && tar -xzf libxml2-2.8.0.tar.gz
-
-# oracle
-RUN apt install unzip libaio-dev -y && mkdir /opt/oracle
-RUN wget http://cloud.gomespro.com.br/instant-client-11/instantclient-basic-linux.x64-11.2.0.4.0.zip -P /opt/oracle
-RUN wget http://cloud.gomespro.com.br/instant-client-11/instantclient-sdk-linux.x64-11.2.0.4.0.zip -P /opt/oracle
-RUN unzip /opt/oracle/instantclient-basic-linux.x64-11.2.0.4.0.zip -d /opt/oracle
-RUN unzip /opt/oracle/instantclient-sdk-linux.x64-11.2.0.4.0.zip -d /opt/oracle
-RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
-
 # httpd
+RUN cd /srv \
+    && wget http://archive.apache.org/dist/httpd/httpd-2.2.3.tar.gz \
+    && tar -xzf httpd-2.2.3.tar.gz \
+    && rm httpd-2.2.3.tar.gz
 RUN cd /srv/httpd-2.2.3 \
 && ./configure --enable-so --enable-rewrite \
 && make -j4 \
 && make install
 
 # libxml
+RUN cd /srv \
+    && wget https://download.gnome.org/sources/libxml2/2.8/libxml2-2.8.0.tar.xz \
+    && tar -xf libxml2-2.8.0.tar.xz \
+    && rm libxml2-2.8.0.tar.xz
 RUN cd /srv/libxml2-2.8.0 \
 && ./configure \
 && make -j4 \
 && make install \
 && ldconfig
+
+# oracle
+RUN apt install unzip libaio-dev -y && mkdir /opt/oracle
+COPY instantclient-basic-linux.x64-11.2.0.4.0.zip /opt/oracle
+COPY instantclient-sdk-linux.x64-11.2.0.4.0.zip /opt/oracle
+RUN unzip /opt/oracle/instantclient-basic-linux.x64-11.2.0.4.0.zip -d /opt/oracle \
+    && rm /opt/oracle/instantclient-basic-linux.x64-11.2.0.4.0.zip
+RUN unzip /opt/oracle/instantclient-sdk-linux.x64-11.2.0.4.0.zip -d /opt/oracle \
+    && rm /opt/oracle/instantclient-sdk-linux.x64-11.2.0.4.0.zip
+RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
 
 # php
 # ./configure --help
@@ -45,6 +47,11 @@ RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ \
 && mkdir /opt/oracle/client \
 && ln -s /opt/oracle/instantclient_11_2/sdk/include /opt/oracle/client/include \
 && ln -s /opt/oracle/instantclient_11_2 /opt/oracle/client/lib
+
+RUN cd /srv  \
+    && wget http://museum.php.net/php5/php-5.2.17.tar.gz \
+    && tar -xzf php-5.2.17.tar.gz \
+    && rm php-5.2.17.tar.gz
 
 RUN cd /srv/php-5.2.17 \
 && ./configure --with-apxs2=/usr/local/apache2/bin/apxs \
@@ -115,6 +122,9 @@ log_errors = On\n\
 error_log = /usr/local/apache2/logs/error_log\n\
 ' >> /usr/local/lib/php.ini \
 && sed -i -- "s/magic_quotes_gpc = On/magic_quotes_gpc = Off/g" /usr/local/lib/php.ini
+
+# php SOAP includes
+# RUN pear install SOAP-0.14.0
 
 # config httpd
 RUN echo '\n\
