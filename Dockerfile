@@ -124,7 +124,10 @@ error_log = /usr/local/apache2/logs/error_log\n\
 && sed -i -- "s/magic_quotes_gpc = On/magic_quotes_gpc = Off/g" /usr/local/lib/php.ini
 
 # php SOAP includes
-# RUN pear install SOAP-0.14.0
+COPY soap-includes.tar.gz /usr/local/lib/php
+RUN cd /usr/local/lib/php \
+    && tar -xvf soap-includes.tar.gz \
+    && rm soap-includes.tar.gz
 
 # config httpd
 RUN echo '\n\
