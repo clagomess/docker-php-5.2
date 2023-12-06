@@ -86,7 +86,7 @@ short_open_tag=On\n\
 display_errors = On\n\
 error_reporting = E_ALL & ~E_DEPRECATED & ~E_NOTICE\n\
 log_errors = On\n\
-error_log = /usr/local/apache2/logs/error_log\n\
+error_log = /var/log/php/error.log\n\
 ' >> /usr/local/lib/php.ini \
 && sed -i -- "s/magic_quotes_gpc = On/magic_quotes_gpc = Off/g" /usr/local/lib/php.ini
 
@@ -104,11 +104,12 @@ zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so
 xdebug.remote_enable=1\n\
 xdebug.remote_handler=dbgp\n\
 xdebug.remote_mode=req\n\
-xdebug.remote_host=host.docker.internal\n\
-xdebug.remote_port=9000\n\
+xdebug.remote_host=${XDEBUG_REMOTE_HOST}\n\
+xdebug.remote_port=${XDEBUG_REMOTE_PORT}\n\
 xdebug.remote_autostart=1\n\
 xdebug.extended_info=1\n\
 xdebug.remote_connect_back = 0\n\
+xdebug.remote_log = /var/log/php/xdebug.log\n\
 \n\' >> /usr/local/lib/php.ini
 
 # php opcache
@@ -144,6 +145,8 @@ Alias "/opcache" "/srv/opcache"\n\
     Allow from all\n\
 </Directory>\n\
 ' >> /usr/local/apache2/conf/httpd.conf \
+&& sed -i -- "s/ErrorLog logs\/error_log/ErrorLog \/var\/log\/apache\/error_log/g" /usr/local/apache2/conf/httpd.conf \
+&& sed -i -- "s/CustomLog logs\/access_log/CustomLog \/var\/log\/apache\/access_log/g" /usr/local/apache2/conf/httpd.conf \
 && sed -i -- "s/AllowOverride None/AllowOverride All/g" /usr/local/apache2/conf/httpd.conf \
 && sed -i -- "s/AllowOverride none/AllowOverride All/g" /usr/local/apache2/conf/httpd.conf \
 && sed -i -- "s/DirectoryIndex index.html/DirectoryIndex index.html index.php/g" /usr/local/apache2/conf/httpd.conf
@@ -158,6 +161,18 @@ RUN locale-gen pt_BR.UTF-8 \
 && rm /etc/locale.gen \
 && dpkg-reconfigure --frontend noninteractive locales
 
-# config stdlog
-RUN ln -sf /dev/stdout /usr/local/apache2/logs/access_log \
-&& ln -sf /dev/stderr /usr/local/apache2/logs/error_log
+# create log files
+RUN mkdir /var/log/php \
+    && mkdir /var/log/apache \
+    && touch /var/log/php/error.log \
+    && touch /var/log/php/xdebug.log \
+    && touch /var/log/apache/access_log \
+    && touch /var/log/apache/error_log \
+    && chown www-data:www-data /var/log/php/error.log \
+    && chown www-data:www-data /var/log/php/xdebug.log \
+    && chown www-data:www-data /var/log/apache/access_log \
+    && chown www-data:www-data /var/log/apache/error_log
+
+# entrypoint
+COPY ./init.sh /srv
+CMD /srv/init.sh

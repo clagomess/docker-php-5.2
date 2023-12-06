@@ -8,4 +8,6 @@ services:
       - "8000:80"
     volumes:
       - .:/usr/local/apache2/htdocs
-    command: "/usr/local/apache2/bin/apachectl -D FOREGROUND"
+    environment:
+      XDEBUG_REMOTE_HOST: host.docker.internal
+      XDEBUG_REMOTE_PORT: 9000
