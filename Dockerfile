@@ -1,38 +1,30 @@
-FROM debian:10
+FROM debian:10-slim
 
 RUN apt update \
 && apt install build-essential -y \
 && apt install vim wget locales -y
 
 # httpd
-RUN cd /srv \
-    && wget http://archive.apache.org/dist/httpd/httpd-2.2.3.tar.gz \
-    && tar -xzf httpd-2.2.3.tar.gz \
-    && rm httpd-2.2.3.tar.gz
+ADD ./httpd-2.2.3.tar.gz /srv
 RUN cd /srv/httpd-2.2.3 \
 && ./configure --enable-so --enable-rewrite \
 && make -j4 \
-&& make install
+&& make install \
+&& rm -rf /srv/httpd-2.2.3
 
 # libxml
-RUN cd /srv \
-    && wget https://download.gnome.org/sources/libxml2/2.8/libxml2-2.8.0.tar.xz \
-    && tar -xf libxml2-2.8.0.tar.xz \
-    && rm libxml2-2.8.0.tar.xz
+ADD ./libxml2-2.8.0.tar.xz /srv
 RUN cd /srv/libxml2-2.8.0 \
 && ./configure \
 && make -j4 \
 && make install \
-&& ldconfig
+&& ldconfig \
+&& rm -rf /srv/libxml2-2.8.0
 
 # oracle
 RUN apt install unzip libaio-dev -y && mkdir /opt/oracle
-COPY instantclient-basic-linux.x64-11.2.0.4.0.zip /opt/oracle
-COPY instantclient-sdk-linux.x64-11.2.0.4.0.zip /opt/oracle
-RUN unzip /opt/oracle/instantclient-basic-linux.x64-11.2.0.4.0.zip -d /opt/oracle \
-    && rm /opt/oracle/instantclient-basic-linux.x64-11.2.0.4.0.zip
-RUN unzip /opt/oracle/instantclient-sdk-linux.x64-11.2.0.4.0.zip -d /opt/oracle \
-    && rm /opt/oracle/instantclient-sdk-linux.x64-11.2.0.4.0.zip
+ADD ./instantclient-basic-linux.x64-11.2.0.4.0.tar.gz /opt/oracle
+ADD ./instantclient-sdk-linux.x64-11.2.0.4.0.tar.gz /opt/oracle
 RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
 
 # php
@@ -48,10 +40,7 @@ RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ \
 && ln -s /opt/oracle/instantclient_11_2/sdk/include /opt/oracle/client/include \
 && ln -s /opt/oracle/instantclient_11_2 /opt/oracle/client/lib
 
-RUN cd /srv  \
-    && wget http://museum.php.net/php5/php-5.2.17.tar.gz \
-    && tar -xzf php-5.2.17.tar.gz \
-    && rm php-5.2.17.tar.gz
+ADD ./php-5.2.17.tar.gz /srv
 
 RUN cd /srv/php-5.2.17 \
 && ./configure --with-apxs2=/usr/local/apache2/bin/apxs \
@@ -84,36 +73,14 @@ RUN cd /srv/php-5.2.17 \
 --with-png-dir=/usr \
 --with-jpeg-dir=/usr \
 --with-freetype-dir=/usr \
---with-zlib
-
-RUN cd /srv/php-5.2.17 \
+--with-zlib \
 && make -j4 \
 && make install \
-&& cp php.ini-dist /usr/local/lib/php.ini
+&& cp php.ini-dist /usr/local/lib/php.ini \
+&& rm -rf /srv/php-5.2.17
 
-# php xdebug
-RUN pecl channel-update pecl.php.net
-RUN pecl install xdebug-2.2.7
-RUN pecl install zendopcache-7.0.5
+# php config
 RUN echo '\n\
-zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613/opcache.so\n\
-opcache.memory_consumption=128\n\
-opcache.interned_strings_buffer=8\n\
-opcache.max_accelerated_files=4000\n\
-opcache.revalidate_freq=2\n\
-opcache.fast_shutdown=1\n\
-opcache.enable_cli=1\n\
-\n\
-zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so\n\
-xdebug.remote_enable=1\n\
-xdebug.remote_handler=dbgp\n\
-xdebug.remote_mode=req\n\
-xdebug.remote_host=host.docker.internal\n\
-xdebug.remote_port=9000\n\
-xdebug.remote_autostart=1\n\
-xdebug.extended_info=1\n\
-xdebug.remote_connect_back = 0\n\
-\n\
 date.timezone = America/Sao_Paulo\n\
 short_open_tag=On\n\
 display_errors = On\n\
@@ -123,11 +90,49 @@ error_log = /usr/local/apache2/logs/error_log\n\
 ' >> /usr/local/lib/php.ini \
 && sed -i -- "s/magic_quotes_gpc = On/magic_quotes_gpc = Off/g" /usr/local/lib/php.ini
 
+# php xdebug
+ADD ./xdebug-2.2.7.tar.gz /srv
+RUN cd /srv/xdebug-2.2.7 \
+    && phpize \
+    && ./configure --enable-xdebug \
+    && make -j4 \
+    && make install \
+    && rm -rf /srv/xdebug-2.2.7
+
+RUN echo '\n\
+zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so\n\
+xdebug.remote_enable=1\n\
+xdebug.remote_handler=dbgp\n\
+xdebug.remote_mode=req\n\
+xdebug.remote_host=host.docker.internal\n\
+xdebug.remote_port=9000\n\
+xdebug.remote_autostart=1\n\
+xdebug.extended_info=1\n\
+xdebug.remote_connect_back = 0\n\
+\n\' >> /usr/local/lib/php.ini
+
+# php opcache
+COPY ./opcache.php /srv/opcache/index.php
+ADD ./zendopcache-7.0.5.tgz /srv
+RUN cd /srv/zendopcache-7.0.5 \
+    && phpize \
+    && ./configure --with-php-config=php-config \
+    && make \
+    && make install \
+    && rm -rf /srv/zendopcache-7.0.5
+
+RUN echo '\n\
+zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613/opcache.so\n\
+opcache.memory_consumption=128\n\
+opcache.interned_strings_buffer=8\n\
+opcache.max_accelerated_files=4000\n\
+opcache.revalidate_freq=2\n\
+opcache.fast_shutdown=1\n\
+opcache.enable_cli=1\n\
+\n\' >> /usr/local/lib/php.ini
+
 # php SOAP includes
-COPY soap-includes.tar.gz /usr/local/lib/php
-RUN cd /usr/local/lib/php \
-    && tar -xvf soap-includes.tar.gz \
-    && rm soap-includes.tar.gz
+ADD ./soap-includes.tar.gz /usr/local/lib/php
 
 # config httpd
 RUN echo '\n\
@@ -142,11 +147,6 @@ Alias "/opcache" "/srv/opcache"\n\
 && sed -i -- "s/AllowOverride None/AllowOverride All/g" /usr/local/apache2/conf/httpd.conf \
 && sed -i -- "s/AllowOverride none/AllowOverride All/g" /usr/local/apache2/conf/httpd.conf \
 && sed -i -- "s/DirectoryIndex index.html/DirectoryIndex index.html index.php/g" /usr/local/apache2/conf/httpd.conf
-
-RUN mkdir /srv/opcache \
-&& wget https://raw.githubusercontent.com/rlerdorf/opcache-status/master/opcache.php -P /srv/opcache \
-&& mv /srv/opcache/opcache.php /srv/opcache/index.php \
-&& chown -R www-data:www-data /srv/opcache
 
 # config OpenSSL
 RUN sed -i -- "s/CipherString = DEFAULT@SECLEVEL=2/CipherString = DEFAULT@SECLEVEL=1/g" /usr/lib/ssl/openssl.cnf \
