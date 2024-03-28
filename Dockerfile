@@ -1,8 +1,13 @@
 FROM debian:10-slim
 
-RUN apt update \
-&& apt install build-essential -y \
-&& apt install vim wget locales -y
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt update  \
+    && apt install build-essential locales -y \
+    && apt install libaio-dev -y \
+    && apt install flex libtool libpq-dev libgd-dev libcurl4-openssl-dev libmcrypt-dev -y
 
 # httpd
 ADD ./httpd-2.2.3.tar.gz /srv
@@ -22,15 +27,12 @@ RUN cd /srv/libxml2-2.8.0 \
 && rm -rf /srv/libxml2-2.8.0
 
 # oracle
-RUN apt install unzip libaio-dev -y && mkdir /opt/oracle
 ADD ./instantclient-basic-linux.x64-11.2.0.4.0.tar.gz /opt/oracle
 ADD ./instantclient-sdk-linux.x64-11.2.0.4.0.tar.gz /opt/oracle
 RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
 
 # php
 # ./configure --help
-RUN apt install flex libtool libpq-dev libgd-dev libcurl4-openssl-dev libmcrypt-dev -y
-
 RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ \
 && ln -s /usr/lib/x86_64-linux-gnu/libpng.so /usr/lib/ \
 && ln -s /usr/include/x86_64-linux-gnu/curl /usr/include/curl \
