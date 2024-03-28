@@ -103,7 +103,7 @@ RUN cd /srv/xdebug-2.2.7 \
 
 RUN echo '\n\
 zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so\n\
-xdebug.remote_enable=1\n\
+xdebug.remote_enable=${XDEBUG_REMOTE_ENABLE}\n\
 xdebug.remote_handler=dbgp\n\
 xdebug.remote_mode=req\n\
 xdebug.remote_host=${XDEBUG_REMOTE_HOST}\n\
@@ -139,6 +139,7 @@ ADD ./soap-includes.tar.gz /usr/local/lib/php
 
 # config httpd
 RUN echo '\n\
+ServerName localhost\n\
 AddType application/x-httpd-php .php .phtml\n\
 User www-data\n\
 Group www-data\n\
