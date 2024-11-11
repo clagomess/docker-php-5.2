@@ -178,6 +178,9 @@ ADD ./instantclient-basic-linux.x64-11.2.0.4.0.tar.gz /release-root/opt/oracle
 
 FROM debian:10-slim AS release
 
+LABEL org.opencontainers.image.source=https://github.com/clagomess/docker-php-5.2
+LABEL org.opencontainers.image.description="Functional docker image for legacy PHP 5.2 + HTTPD + XDEBUG"
+
 ENV DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
