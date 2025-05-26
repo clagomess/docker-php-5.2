@@ -300,13 +300,18 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt update \
-    && apt install locales libltdl7 libaio1 libnsl2 libpq5 libgd3 libmcrypt4 -y
+    && apt install locales libltdl7 libaio1 libnsl2 libpq5 libgd3 libmcrypt4 ssh -y
 
 # add locale
 RUN locale-gen pt_BR.UTF-8 \
 && echo "locales locales/locales_to_be_generated multiselect pt_BR.UTF-8 UTF-8" | debconf-set-selections \
 && rm /etc/locale.gen \
 && dpkg-reconfigure --frontend noninteractive locales
+
+# ssh user
+RUN useradd -m -s /bin/bash -d /srv/htdocs php && \
+    echo "php:php" | chpasswd && \
+    usermod -aG www-data php
 
 # oracle
 ADD ./instantclient-basic-linux.x64-11.2.0.4.0.tar.gz /opt/oracle

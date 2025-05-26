@@ -8,4 +8,5 @@ echo "" > /var/log/apache/error_log
 
 tail -f /var/log/apache/access_log > /dev/stdout & \
 tail -f /var/log/php/error.log /var/log/apache/error_log > /dev/stderr & \
+service ssh start & \
 /opt/httpd-2.2.3/bin/apachectl -D FOREGROUND

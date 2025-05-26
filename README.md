@@ -10,3 +10,4 @@ DON'T USE IN PRODUCTION!
 - Access on your preferred web browser through endpoint http://localhost:8000
 - DocumentRoot: `/srv/htdocs`
 - OpCache Panel: `http://localhost:8000/opcache/`
+- SSH user & pass: php
