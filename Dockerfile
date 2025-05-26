@@ -157,19 +157,6 @@ RUN ./configure --prefix=/opt/curl-7.19.7 \
 RUN make -j$(nproc)
 RUN make install
 
-# libtool-1.4.2
-FROM build-base AS build-libtool
-
-WORKDIR /srv/libtool-1.4.2
-
-RUN wget https://mirrors.up.pt/pub/gnu/libtool/libtool-1.4.2.tar.gz -O /srv/libtool-1.4.2.tar.gz && \
-    tar -xvf /srv/libtool-1.4.2.tar.gz -C /srv/ && \
-    rm /srv/libtool-1.4.2.tar.gz
-
-RUN ./configure --prefix /opt/libtool-1.4.2
-RUN make -j$(nproc)
-RUN make install
-
 # php-5.2.17
 FROM build-gcc AS build-php
 
@@ -327,16 +314,30 @@ RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclie
     ldconfig
 
 COPY ./init.sh /opt/init.sh
-COPY --from=build-opcache-status /srv/opcache /srv/opcache
-COPY --from=build-zendopcache /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/opcache.so /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/opcache.so
-COPY --from=build-openssl /opt/openssl-0.9.8h /opt/openssl-0.9.8h
-COPY --from=build-curl /opt/curl-7.19.7 /opt/curl-7.19.7
-COPY --from=build-php /opt/httpd-2.2.3 /opt/httpd-2.2.3
-COPY --from=build-php /opt/php-5.2.17 /opt/php-5.2.17
-COPY --from=build-xdebug /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so
-COPY --from=build-libxml2 /opt/libxml2-2.8.0 /opt/libxml2-2.8.0
 
-RUN ldconfig -n /opt/libxml2-2.8.0/lib
+# openssl
+COPY --from=build-openssl /opt/openssl-0.9.8h /opt/openssl-0.9.8h
+RUN echo "/opt/openssl-0.9.8h/lib" > /etc/ld.so.conf.d/openssl.conf && \
+    ldconfig
+
+# curl
+COPY --from=build-curl /opt/curl-7.19.7 /opt/curl-7.19.7
+RUN ln -s /opt/curl-7.19.7/bin/curl /usr/bin/curl
+
+# libxml
+COPY --from=build-libxml2 /opt/libxml2-2.8.0 /opt/libxml2-2.8.0
+RUN echo "/opt/libxml2-2.8.0/lib" > /etc/ld.so.conf.d/libxml2.conf && \
+    ldconfig
+
+COPY --from=build-opcache-status /srv/opcache /srv/opcache
+
+# php
+COPY --from=build-php /opt/php-5.2.17 /opt/php-5.2.17
+RUN ln -s /opt/php-5.2.17/bin/php /usr/bin/php
+
+COPY --from=build-zendopcache /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/opcache.so /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/opcache.so
+COPY --from=build-php /opt/httpd-2.2.3 /opt/httpd-2.2.3
+COPY --from=build-xdebug /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so
 
 # create log files
 RUN mkdir /var/log/php \
