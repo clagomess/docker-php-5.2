@@ -1,191 +1,306 @@
-FROM debian:10-slim AS build-base
+FROM debian:12-slim AS build-base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt update  \
-    && apt install build-essential -y
+    && apt install build-essential wget vim -y
 
-# httpd
-FROM build-base AS build-httpd
-ADD ./httpd-2.2.3.tar.gz /srv
-RUN cd /srv/httpd-2.2.3 \
-    && ./configure --enable-so --enable-rewrite \
-    && make -j4 \
-    && make install
-RUN cd / && tar -czvf httpd-result.tar.gz \
-    /usr/local/apache2
+# gmp-4.3.2
+FROM build-base AS build-gmp
 
-## libxml
-FROM build-base AS build-libxml
-ADD ./libxml2-2.8.0.tar.xz /srv
-RUN cd /srv/libxml2-2.8.0 \
-    && ./configure \
-    && make -j4 \
-    && make install
-RUN cd / && tar -czvf libxml-result.tar.gz \
-    /usr/local/include/libxml2 \
-    /usr/local/share/doc/libxml2-2.8.0 \
-    /usr/local/share/gtk-doc/html/libxml2 \
-    /usr/local/share/man/man1/xmllint.1 \
-    /usr/local/share/man/man1/xml2-config.1 \
-    /usr/local/share/man/man1/xmlcatalog.1 \
-    /usr/local/share/man/man3/libxml.3 \
-    /usr/local/share/aclocal/libxml.m4 \
-    /usr/local/lib/xml2Conf.sh \
-    /usr/local/lib/pkgconfig/libxml-2.0.pc \
-    /usr/local/lib/libxml2.a \
-    /usr/local/lib/libxml2.so.2 \
-    /usr/local/lib/libxml2.so.2.8.0 \
-    /usr/local/lib/libxml2.so \
-    /usr/local/lib/libxml2.la \
-    /usr/local/bin/xmlcatalog \
-    /usr/local/bin/xml2-config \
-    /usr/local/bin/xmllint
+WORKDIR /srv/gmp-4.3.2
 
-FROM build-base AS build-php
-
-COPY --from=build-httpd /httpd-result.tar.gz /httpd-result.tar.gz
-COPY --from=build-libxml /libxml-result.tar.gz /libxml-result.tar.gz
-RUN cd / \
-    && tar -xvf httpd-result.tar.gz \
-    && tar -xvf libxml-result.tar.gz \
-    && ldconfig
+RUN wget https://ftp.gnu.org/gnu/gmp/gmp-4.3.2.tar.gz -O /srv/gmp-4.3.2.tar.gz && \
+    tar -xvf /srv/gmp-4.3.2.tar.gz -C /srv/ && \
+    rm /srv/gmp-4.3.2.tar.gz
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt install libaio-dev -y flex libtool libpq-dev libgd-dev libcurl4-openssl-dev libmcrypt-dev -y
+    apt update  \
+    && apt install m4 -y
+
+RUN ./configure --prefix /opt/gmp-4.3.2
+RUN make -j$(nproc)
+RUN make install
+
+# mpfr-2.4.2
+FROM build-base AS build-mpfr
+
+WORKDIR /srv/mpfr-2.4.2
+
+RUN wget https://ftp.gnu.org/gnu/mpfr/mpfr-2.4.2.tar.gz -O /srv/mpfr-2.4.2.tar.gz && \
+    tar -xvf /srv/mpfr-2.4.2.tar.gz -C /srv/ && \
+    rm /srv/mpfr-2.4.2.tar.gz
+
+COPY --from=build-gmp /opt/gmp-4.3.2 /opt/gmp-4.3.2
+
+RUN ./configure \
+    --prefix /opt/mpfr-2.4.2 \
+    --with-gmp=/opt/gmp-4.3.2
+RUN make -j$(nproc)
+RUN make install
+
+# mpc-1.0.1
+FROM build-base AS build-mpc
+
+WORKDIR /srv/mpc-1.0.1
+
+RUN wget https://ftp.gnu.org/gnu/mpc/mpc-1.0.1.tar.gz -O /srv/mpc-1.0.1.tar.gz && \
+    tar -xvf /srv/mpc-1.0.1.tar.gz -C /srv/ && \
+    rm /srv/mpc-1.0.1.tar.gz
+
+COPY --from=build-gmp /opt/gmp-4.3.2 /opt/gmp-4.3.2
+COPY --from=build-mpfr /opt/mpfr-2.4.2 /opt/mpfr-2.4.2
+
+RUN ./configure \
+    --prefix /opt/mpc-1.0.1 \
+    --with-gmp=/opt/gmp-4.3.2 \
+    --with-mpfr=/opt/mpfr-2.4.2
+RUN make -j$(nproc)
+RUN make install
+
+# gcc-8.2.0
+FROM build-base AS build-gcc
+
+WORKDIR /srv/gcc-8.2.0
+
+RUN wget https://ftp.gnu.org/gnu/gcc/gcc-8.2.0/gcc-8.2.0.tar.gz -O /srv/gcc-8.2.0.tar.gz && \
+    tar -xvf /srv/gcc-8.2.0.tar.gz -C /srv/ && \
+    rm /srv/gcc-8.2.0.tar.gz
+
+COPY --from=build-gmp /opt/gmp-4.3.2 /opt/gmp-4.3.2
+COPY --from=build-mpfr /opt/mpfr-2.4.2 /opt/mpfr-2.4.2
+COPY --from=build-mpc /opt/mpc-1.0.1 /opt/mpc-1.0.1
+
+RUN ln -s /opt/mpfr-2.4.2/lib/libmpfr.so.1 /lib/x86_64-linux-gnu/libmpfr.so.1 && \
+    ln -s /opt/gmp-4.3.2/lib/libgmp.so.3 /lib/x86_64-linux-gnu/libgmp.so.3 && \
+    ldconfig
+
+# GMP 4.2+, MPFR 2.4.0+ and MPC 0.8.0+.
+RUN ./configure \
+    --prefix /opt/gcc-8.2.0 \
+    --with-gmp=/opt/gmp-4.3.2 \
+    --with-mpfr=/opt/mpfr-2.4.2 \
+    --with-mpc=/opt/mpc-1.0.1 \
+    --enable-languages=c,c++ \
+    --disable-multilib \
+    --disable-libcc1 \
+    --disable-libitm \
+    --disable-libsanitizer \
+    --disable-libquadmath \
+    --disable-libvtv
+RUN make -j$(nproc)
+RUN make install
+
+# httpd-2.2.3
+FROM build-base AS build-httpd
+
+WORKDIR /srv/httpd-2.2.3
+
+RUN wget https://archive.apache.org/dist/httpd/httpd-2.2.3.tar.gz -O /srv/httpd-2.2.3.tar.gz && \
+    tar -xvf /srv/httpd-2.2.3.tar.gz -C /srv/ && \
+    rm /srv/httpd-2.2.3.tar.gz
+
+RUN ./configure --enable-so --enable-rewrite --prefix /opt/httpd-2.2.3
+RUN make -j$(nproc)
+RUN make install
+
+RUN echo 'Include conf.d/*.conf' >> /opt/httpd-2.2.3/conf/httpd.conf
+COPY httpd.conf.d /opt/httpd-2.2.3/conf.d/
+
+# libxml2-2.8.0
+FROM build-base AS build-libxml2
+
+WORKDIR /srv/libxml2-2.8.0
+
+RUN wget https://download.gnome.org/sources/libxml2/2.8/libxml2-2.8.0.tar.xz -O /srv/libxml2-2.8.0.tar.gz && \
+    tar -xvf /srv/libxml2-2.8.0.tar.gz -C /srv/ && \
+    rm /srv/libxml2-2.8.0.tar.gz
+
+RUN ./configure --prefix /opt/libxml2-2.8.0
+RUN make -j$(nproc)
+RUN make install
+
+# openssl-0.9.8h
+FROM build-base AS build-openssl
+
+WORKDIR /srv/openssl-0.9.8h
+
+RUN wget https://github.com/openssl/openssl/releases/download/OpenSSL_0_9_8h/openssl-0.9.8h.tar.gz -O /srv/openssl.tar.gz && \
+    tar -xvf /srv/openssl.tar.gz --one-top-level=openssl-0.9.8h --strip-components=1 -C /srv/ && \
+    rm /srv/openssl.tar.gz
+
+RUN ./config \
+    --prefix=/opt/openssl-0.9.8h  \
+    --openssldir=/opt/openssl-0.9.8h/openssl \
+    shared
+
+RUN make
+RUN make install_sw
+
+# curl-7.19.7
+FROM build-base AS build-curl
+
+WORKDIR /srv/curl-7.19.7
+
+RUN wget https://curl.se/download/archeology/curl-7.19.7.tar.gz -O /srv/curl-7.19.7.tar.gz && \
+    tar -xvf /srv/curl-7.19.7.tar.gz -C /srv/ && \
+    rm /srv/curl-7.19.7.tar.gz
+
+COPY --from=build-openssl /opt/openssl-0.9.8h /opt/openssl-0.9.8h
+
+RUN ./configure --prefix=/opt/curl-7.19.7 \
+    --with-ssl=/opt/openssl-0.9.8h \
+    --disable-shared
+RUN make -j$(nproc)
+RUN make install
+
+# php-5.2.17
+FROM build-gcc AS build-php
+
+WORKDIR /srv/php-5.2.17
+
+RUN wget https://museum.php.net/php5/php-5.2.17.tar.gz -O /srv/php-5.2.17.tar.gz && \
+    tar -xvf /srv/php-5.2.17.tar.gz  --one-top-level=php-5.2.17 --strip-components=1 -C /srv/ && \
+    rm /srv/php-5.2.17.tar.gz
 
 # oracle
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt update && \
+    apt install libaio-dev -y
+
 ADD ./instantclient-basic-linux.x64-11.2.0.4.0.tar.gz /opt/oracle
 ADD ./instantclient-sdk-linux.x64-11.2.0.4.0.tar.gz /opt/oracle
-RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
+RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclient.conf \
+    && ldconfig
 
-# php
-# ./configure --help
+RUN ln -s /opt/oracle/instantclient_11_2/libclntsh.so.11.1 /opt/oracle/instantclient_11_2/libclntsh.so \
+    && mkdir /opt/oracle/client \
+    && ln -s /opt/oracle/instantclient_11_2/sdk/include /opt/oracle/client/include \
+    && ln -s /opt/oracle/instantclient_11_2 /opt/oracle/client/lib
+
+# jpg/png
 RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ \
-&& ln -s /usr/lib/x86_64-linux-gnu/libpng.so /usr/lib/ \
-&& ln -s /usr/include/x86_64-linux-gnu/curl /usr/include/curl \
-&& ln -s /usr/lib/x86_64-linux-gnu/libldap.so /usr/lib/ \
-&& ln -s /opt/oracle/instantclient_11_2/libclntsh.so.11.1 /opt/oracle/instantclient_11_2/libclntsh.so \
-&& mkdir /opt/oracle/client \
-&& ln -s /opt/oracle/instantclient_11_2/sdk/include /opt/oracle/client/include \
-&& ln -s /opt/oracle/instantclient_11_2 /opt/oracle/client/lib
+    && ln -s /usr/lib/x86_64-linux-gnu/libpng.so /usr/lib/
 
-ADD ./php-5.2.17.tar.gz /srv
+# other libs
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt update && \
+    apt install libpq-dev libgd-dev libmcrypt-dev libltdl-dev -y
 
-RUN cd /srv/php-5.2.17 \
-&& ./configure --with-apxs2=/usr/local/apache2/bin/apxs \
---with-pgsql \
---with-pdo-pgsql \
---with-gd \
---with-curl \
---enable-soap \
---with-mcrypt \
---enable-mbstring \
---enable-calendar \
---enable-bcmath \
---enable-zip \
---enable-exif \
---enable-ftp \
---enable-shmop \
---enable-sockets \
---enable-sysvmsg \
---enable-sysvsem \
---enable-sysvshm \
---enable-wddx \
---enable-dba \
-#--with-openssl \ @TODO: deprec error libssl-dev; compile source
---with-gettext \
---with-mime-magic=/usr/local/apache2/conf/magic \
-#--with-ldap \ @TODO: deprec error libldap2-dev; compile source
---with-oci8=instantclient,/opt/oracle/instantclient_11_2 \
---with-pdo-oci=instantclient,/opt/oracle,11.2 \
---with-ttf \
---with-png-dir=/usr \
---with-jpeg-dir=/usr \
---with-freetype-dir=/usr \
---with-zlib \
-&& make -j4 \
-&& make install \
-&& cp php.ini-dist /usr/local/lib/php.ini
+COPY --from=build-httpd /opt/httpd-2.2.3 /opt/httpd-2.2.3
+COPY --from=build-libxml2 /opt/libxml2-2.8.0 /opt/libxml2-2.8.0
+COPY --from=build-openssl /opt/openssl-0.9.8h /opt/openssl-0.9.8h
+COPY --from=build-curl /opt/curl-7.19.7 /opt/curl-7.19.7
 
-RUN cd / && tar -czvf php-result.tar.gz \
-    /usr/local/lib/php \
-    /usr/local/include/php \
-    /usr/local/apache2/conf/httpd.conf  \
-    /usr/local/apache2/conf/httpd.conf.bak \
-    /usr/local/apache2/modules/libphp5.so \
-    /usr/local/share/man/man1/php-config.1 \
-    /usr/local/share/man/man1/php.1  \
-    /usr/local/share/man/man1/phpize.1 \
-    /usr/local/bin/php-config  \
-    /usr/local/bin/phpize  \
-    /usr/local/bin/peardev \
-    /usr/local/bin/pear  \
-    /usr/local/bin/pecl  \
-    /usr/local/bin/php \
-    /usr/local/etc/pear.conf \
-    /usr/local/lib/php.ini
+# gcc
+COPY --from=build-gcc /opt/gcc-8.2.0 /opt/gcc-8.2.0
+
+RUN ldconfig -n /opt/gcc-8.2.0/lib/../lib64 && \
+    ln -sf /opt/gcc-8.2.0/bin/gcc /usr/bin/gcc
+
+# ./configure --help
+RUN ./configure \
+    --prefix=/opt/php-5.2.17 \
+    --with-gnu-ld \
+    --with-config-file-scan-dir=/opt/php-5.2.17/php.ini.d \
+    --with-apxs2=/opt/httpd-2.2.3/bin/apxs \
+    --with-libxml-dir=/opt/libxml2-2.8.0 \
+    --with-pgsql \
+    --with-pdo-pgsql \
+    --with-gd \
+    --with-curl=/opt/curl-7.19.7 \
+    --enable-soap \
+    --with-mcrypt \
+    --enable-mbstring \
+    --enable-calendar \
+    --enable-bcmath \
+    --enable-zip \
+    --enable-exif \
+    --enable-ftp \
+    --enable-shmop \
+    --enable-sockets \
+    --enable-sysvmsg \
+    --enable-sysvsem \
+    --enable-sysvshm \
+    --enable-wddx \
+    --enable-dba \
+    --with-openssl=/opt/openssl-0.9.8h \
+    --with-gettext \
+    --with-mime-magic=/opt/httpd-2.2.3/conf/magic \
+    --with-oci8=instantclient,/opt/oracle/instantclient_11_2 \
+    --with-pdo-oci=instantclient,/opt/oracle,11.2 \
+    --with-ttf \
+    --with-png-dir=/usr \
+    --with-jpeg-dir=/usr \
+    --with-freetype-dir=/usr \
+    --with-zlib
+
+RUN make -j$(nproc)
+RUN make install
+RUN cp /srv/php-5.2.17/php.ini-dist /opt/php-5.2.17/lib/php.ini
+ADD ./soap-includes.tar.gz /opt/php-5.2.17/lib/php
+COPY php.ini.d /opt/php-5.2.17/php.ini.d/
 
 # php xdebug
 FROM build-php AS build-xdebug
-ADD ./xdebug-2.2.7.tar.gz /srv
-RUN cd /srv/xdebug-2.2.7 \
-    && phpize \
-    && ./configure --enable-xdebug \
-    && make -j4 \
-    && make install
-RUN cd / && tar -czvf xdebug-result.tar.gz \
-    /usr/local/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so
 
-## php opcache
-FROM build-php AS build-opcache
-ADD ./zendopcache-7.0.5.tgz /srv
-RUN cd /srv/zendopcache-7.0.5 \
-    && phpize \
-    && ./configure --with-php-config=php-config \
-    && make \
-    && make install
-RUN cd / && tar -czvf opcache-result.tar.gz \
-    /usr/local/lib/php/extensions/no-debug-non-zts-20060613/opcache.so
+WORKDIR /srv/xdebug-2.2.7
 
-FROM debian:10-slim AS release-base
+RUN wget https://github.com/xdebug/xdebug/archive/refs/tags/XDEBUG_2_2_7.tar.gz -O /srv/xdebug-2.2.7.tar.gz && \
+    tar -xvf /srv/xdebug-2.2.7.tar.gz --one-top-level=xdebug-2.2.7 --strip-components=1 -C /srv/ && \
+    rm /srv/xdebug-2.2.7.tar.gz
 
-RUN mkdir /release-root
+COPY --from=build-php /opt/php-5.2.17 /opt/php-5.2.17
 
-COPY --from=build-httpd /httpd-result.tar.gz /httpd-result.tar.gz
-RUN tar -xvf /httpd-result.tar.gz -C /release-root
+RUN /opt/php-5.2.17/bin/phpize
+RUN ./configure \
+    --enable-xdebug \
+    --with-php-config=/opt/php-5.2.17/bin/php-config
+RUN make -j$(nproc)
+RUN make install
 
-COPY --from=build-libxml /libxml-result.tar.gz /libxml-result.tar.gz
-RUN tar -xvf /libxml-result.tar.gz -C /release-root
+# opcache-status
+FROM build-base AS build-opcache-status
 
-COPY --from=build-php /php-result.tar.gz /php-result.tar.gz
-RUN tar -xvf /php-result.tar.gz -C /release-root
+RUN mkdir -p /srv/opcache && \
+    wget https://raw.githubusercontent.com/rlerdorf/opcache-status/refs/heads/master/opcache.php -O /srv/opcache/index.php
 
-COPY --from=build-xdebug /xdebug-result.tar.gz /xdebug-result.tar.gz
-RUN tar -xvf /xdebug-result.tar.gz -C /release-root
+## php zendopcache-7.0.5
+FROM build-php AS build-zendopcache
 
-COPY --from=build-opcache /opcache-result.tar.gz /opcache-result.tar.gz
-COPY ./opcache.php /release-root/srv/opcache/index.php
-RUN tar -xvf /opcache-result.tar.gz -C /release-root
+WORKDIR /srv/zendopcache-7.0.5
 
-ADD ./soap-includes.tar.gz /release-root/usr/local/lib/php
-COPY ./init.sh /release-root/srv/init.sh
+RUN wget https://pecl.php.net/get/zendopcache-7.0.5.tgz -O /srv/zendopcache-7.0.5.tar.gz && \
+    tar -xvf /srv/zendopcache-7.0.5.tar.gz -C /srv/ && \
+    rm /srv/zendopcache-7.0.5.tar.gz
 
-ADD ./instantclient-basic-linux.x64-11.2.0.4.0.tar.gz /release-root/opt/oracle
+COPY --from=build-php /opt/php-5.2.17 /opt/php-5.2.17
 
-FROM debian:10-slim AS release
+RUN /opt/php-5.2.17/bin/phpize
+
+RUN ./configure \
+    --with-php-config=/opt/php-5.2.17/bin/php-config
+RUN make -j$(nproc)
+RUN make install
+
+# release
+FROM debian:12-slim AS release
 
 LABEL org.opencontainers.image.source=https://github.com/clagomess/docker-php-5.2
 LABEL org.opencontainers.image.description="Functional docker image for legacy PHP 5.2 + HTTPD + XDEBUG"
+
+WORKDIR /srv/htdocs
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt update \
-    && apt install locales libltdl7 libaio1 libpq5 libgd3 libcurl4 libmcrypt4 -y
+    && apt install locales libltdl7 libaio1 libnsl2 libpq5 libgd3 libmcrypt4 ssh -y
 
 # add locale
 RUN locale-gen pt_BR.UTF-8 \
@@ -193,63 +308,41 @@ RUN locale-gen pt_BR.UTF-8 \
 && rm /etc/locale.gen \
 && dpkg-reconfigure --frontend noninteractive locales
 
-COPY --from=release-base /release-root /
+# ssh user
+RUN useradd -m -s /bin/bash -d /srv/htdocs php && \
+    echo "php:php" | chpasswd && \
+    usermod -aG www-data php
 
 # oracle
-RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
+ADD ./instantclient-basic-linux.x64-11.2.0.4.0.tar.gz /opt/oracle
+RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclient.conf && \
+    ldconfig
 
-# php config
-RUN echo '\n\
-date.timezone = America/Sao_Paulo\n\
-short_open_tag=On\n\
-display_errors = On\n\
-error_reporting = E_ALL & ~E_DEPRECATED & ~E_NOTICE\n\
-log_errors = On\n\
-error_log = /var/log/php/error.log\n\
-\n\
-# XDEBUG\n\
-zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so\n\
-xdebug.remote_enable=${XDEBUG_REMOTE_ENABLE}\n\
-xdebug.remote_handler=dbgp\n\
-xdebug.remote_mode=req\n\
-xdebug.remote_host=${XDEBUG_REMOTE_HOST}\n\
-xdebug.remote_port=${XDEBUG_REMOTE_PORT}\n\
-xdebug.remote_autostart=1\n\
-xdebug.extended_info=1\n\
-xdebug.remote_connect_back = 0\n\
-xdebug.remote_log = /var/log/php/xdebug.log\n\
-\n\
-# OPCACHE\n\
-zend_extension=/usr/local/lib/php/extensions/no-debug-non-zts-20060613/opcache.so\n\
-opcache.memory_consumption=128\n\
-opcache.interned_strings_buffer=8\n\
-opcache.max_accelerated_files=4000\n\
-opcache.revalidate_freq=2\n\
-opcache.fast_shutdown=1\n\
-opcache.enable_cli=1\n\
-' >> /usr/local/lib/php.ini \
-&& sed -i -- "s/magic_quotes_gpc = On/magic_quotes_gpc = Off/g" /usr/local/lib/php.ini
+COPY ./init.sh /opt/init.sh
 
-# config httpd
-RUN echo '\n\
-ServerName localhost\n\
-AddType application/x-httpd-php .php .phtml\n\
-User www-data\n\
-Group www-data\n\
-Alias "/opcache" "/srv/opcache"\n\
-<Directory "/srv/opcache">\n\
-    Allow from all\n\
-</Directory>\n\
-' >> /usr/local/apache2/conf/httpd.conf \
-&& sed -i -- "s/ErrorLog logs\/error_log/ErrorLog \/var\/log\/apache\/error_log/g" /usr/local/apache2/conf/httpd.conf \
-&& sed -i -- "s/CustomLog logs\/access_log/CustomLog \/var\/log\/apache\/access_log/g" /usr/local/apache2/conf/httpd.conf \
-&& sed -i -- "s/AllowOverride None/AllowOverride All/g" /usr/local/apache2/conf/httpd.conf \
-&& sed -i -- "s/AllowOverride none/AllowOverride All/g" /usr/local/apache2/conf/httpd.conf \
-&& sed -i -- "s/DirectoryIndex index.html/DirectoryIndex index.html index.php/g" /usr/local/apache2/conf/httpd.conf
+# openssl
+COPY --from=build-openssl /opt/openssl-0.9.8h /opt/openssl-0.9.8h
+RUN echo "/opt/openssl-0.9.8h/lib" > /etc/ld.so.conf.d/openssl.conf && \
+    ldconfig
 
-# config OpenSSL
-RUN sed -i -- "s/CipherString = DEFAULT@SECLEVEL=2/CipherString = DEFAULT@SECLEVEL=1/g" /usr/lib/ssl/openssl.cnf \
-&& sed -i -- "s/MinProtocol = TLSv1.2/MinProtocol = TLSv1.0/g" /usr/lib/ssl/openssl.cnf
+# curl
+COPY --from=build-curl /opt/curl-7.19.7 /opt/curl-7.19.7
+RUN ln -s /opt/curl-7.19.7/bin/curl /usr/bin/curl
+
+# libxml
+COPY --from=build-libxml2 /opt/libxml2-2.8.0 /opt/libxml2-2.8.0
+RUN echo "/opt/libxml2-2.8.0/lib" > /etc/ld.so.conf.d/libxml2.conf && \
+    ldconfig
+
+COPY --from=build-opcache-status /srv/opcache /srv/opcache
+
+# php
+COPY --from=build-php /opt/php-5.2.17 /opt/php-5.2.17
+RUN ln -s /opt/php-5.2.17/bin/php /usr/bin/php
+
+COPY --from=build-zendopcache /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/opcache.so /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/opcache.so
+COPY --from=build-php /opt/httpd-2.2.3 /opt/httpd-2.2.3
+COPY --from=build-xdebug /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so
 
 # create log files
 RUN mkdir /var/log/php \
@@ -264,4 +357,4 @@ RUN mkdir /var/log/php \
     && chown www-data:www-data /var/log/apache/error_log
 
 # entrypoint
-CMD ["bash", "/srv/init.sh"]
+CMD ["bash", "/opt/init.sh"]
