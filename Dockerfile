@@ -2,8 +2,8 @@ FROM debian:12-slim AS build-base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
+    --mount=type=cache,target=/var/lib/apt,sharing=private \
     apt update  \
     && apt install build-essential wget vim -y
 
@@ -12,12 +12,12 @@ FROM build-base AS build-gmp
 
 WORKDIR /srv/gmp-4.3.2
 
-RUN wget https://ftp.gnu.org/gnu/gmp/gmp-4.3.2.tar.gz -O /srv/gmp-4.3.2.tar.gz && \
-    tar -xvf /srv/gmp-4.3.2.tar.gz -C /srv/ && \
-    rm /srv/gmp-4.3.2.tar.gz
+RUN wget --no-verbose https://ftp.gnu.org/gnu/gmp/gmp-4.3.2.tar.gz \
+    -O /srv/gmp-4.3.2.tar.gz
+RUN tar -xf /srv/gmp-4.3.2.tar.gz -C /srv/
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
+    --mount=type=cache,target=/var/lib/apt,sharing=private \
     apt update  \
     && apt install m4 -y
 
@@ -30,9 +30,9 @@ FROM build-base AS build-mpfr
 
 WORKDIR /srv/mpfr-2.4.2
 
-RUN wget https://ftp.gnu.org/gnu/mpfr/mpfr-2.4.2.tar.gz -O /srv/mpfr-2.4.2.tar.gz && \
-    tar -xvf /srv/mpfr-2.4.2.tar.gz -C /srv/ && \
-    rm /srv/mpfr-2.4.2.tar.gz
+RUN wget --no-verbose https://ftp.gnu.org/gnu/mpfr/mpfr-2.4.2.tar.gz \
+    -O /srv/mpfr-2.4.2.tar.gz
+RUN tar -xf /srv/mpfr-2.4.2.tar.gz -C /srv/
 
 COPY --from=build-gmp /opt/gmp-4.3.2 /opt/gmp-4.3.2
 
@@ -47,9 +47,9 @@ FROM build-base AS build-mpc
 
 WORKDIR /srv/mpc-1.0.1
 
-RUN wget https://ftp.gnu.org/gnu/mpc/mpc-1.0.1.tar.gz -O /srv/mpc-1.0.1.tar.gz && \
-    tar -xvf /srv/mpc-1.0.1.tar.gz -C /srv/ && \
-    rm /srv/mpc-1.0.1.tar.gz
+RUN wget --no-verbose https://ftp.gnu.org/gnu/mpc/mpc-1.0.1.tar.gz \
+    -O /srv/mpc-1.0.1.tar.gz
+RUN tar -xf /srv/mpc-1.0.1.tar.gz -C /srv/
 
 COPY --from=build-gmp /opt/gmp-4.3.2 /opt/gmp-4.3.2
 COPY --from=build-mpfr /opt/mpfr-2.4.2 /opt/mpfr-2.4.2
@@ -66,9 +66,9 @@ FROM build-base AS build-gcc
 
 WORKDIR /srv/gcc-8.2.0
 
-RUN wget https://ftp.gnu.org/gnu/gcc/gcc-8.2.0/gcc-8.2.0.tar.gz -O /srv/gcc-8.2.0.tar.gz && \
-    tar -xvf /srv/gcc-8.2.0.tar.gz -C /srv/ && \
-    rm /srv/gcc-8.2.0.tar.gz
+RUN wget --no-verbose https://ftp.gnu.org/gnu/gcc/gcc-8.2.0/gcc-8.2.0.tar.gz \
+    -O /srv/gcc-8.2.0.tar.gz
+RUN tar -xf /srv/gcc-8.2.0.tar.gz -C /srv/
 
 COPY --from=build-gmp /opt/gmp-4.3.2 /opt/gmp-4.3.2
 COPY --from=build-mpfr /opt/mpfr-2.4.2 /opt/mpfr-2.4.2
@@ -99,9 +99,9 @@ FROM build-base AS build-httpd
 
 WORKDIR /srv/httpd-2.2.3
 
-RUN wget https://archive.apache.org/dist/httpd/httpd-2.2.3.tar.gz -O /srv/httpd-2.2.3.tar.gz && \
-    tar -xvf /srv/httpd-2.2.3.tar.gz -C /srv/ && \
-    rm /srv/httpd-2.2.3.tar.gz
+RUN wget --no-verbose https://archive.apache.org/dist/httpd/httpd-2.2.3.tar.gz \
+    -O /srv/httpd-2.2.3.tar.gz
+RUN tar -xf /srv/httpd-2.2.3.tar.gz -C /srv/
 
 RUN ./configure --enable-so --enable-rewrite --prefix /opt/httpd-2.2.3
 RUN make -j$(nproc)
@@ -115,9 +115,9 @@ FROM build-base AS build-libxml2
 
 WORKDIR /srv/libxml2-2.8.0
 
-RUN wget https://download.gnome.org/sources/libxml2/2.8/libxml2-2.8.0.tar.xz -O /srv/libxml2-2.8.0.tar.gz && \
-    tar -xvf /srv/libxml2-2.8.0.tar.gz -C /srv/ && \
-    rm /srv/libxml2-2.8.0.tar.gz
+RUN wget --no-verbose https://download.gnome.org/sources/libxml2/2.8/libxml2-2.8.0.tar.xz \
+    -O /srv/libxml2-2.8.0.tar.gz
+RUN tar -xf /srv/libxml2-2.8.0.tar.gz -C /srv/
 
 RUN ./configure --prefix /opt/libxml2-2.8.0
 RUN make -j$(nproc)
@@ -128,9 +128,12 @@ FROM build-base AS build-openssl
 
 WORKDIR /srv/openssl-0.9.8h
 
-RUN wget https://github.com/openssl/openssl/releases/download/OpenSSL_0_9_8h/openssl-0.9.8h.tar.gz -O /srv/openssl.tar.gz && \
-    tar -xvf /srv/openssl.tar.gz --one-top-level=openssl-0.9.8h --strip-components=1 -C /srv/ && \
-    rm /srv/openssl.tar.gz
+RUN wget --no-verbose https://github.com/openssl/openssl/releases/download/OpenSSL_0_9_8h/openssl-0.9.8h.tar.gz \
+    -O /srv/openssl.tar.gz
+RUN tar -xf /srv/openssl.tar.gz \
+    --one-top-level=openssl-0.9.8h \
+    --strip-components=1 \
+    -C /srv/
 
 RUN ./config \
     --prefix=/opt/openssl-0.9.8h  \
@@ -145,9 +148,9 @@ FROM build-base AS build-curl
 
 WORKDIR /srv/curl-7.19.7
 
-RUN wget https://curl.se/download/archeology/curl-7.19.7.tar.gz -O /srv/curl-7.19.7.tar.gz && \
-    tar -xvf /srv/curl-7.19.7.tar.gz -C /srv/ && \
-    rm /srv/curl-7.19.7.tar.gz
+RUN wget --no-verbose https://curl.se/download/archeology/curl-7.19.7.tar.gz \
+    -O /srv/curl-7.19.7.tar.gz
+RUN tar -xf /srv/curl-7.19.7.tar.gz -C /srv/
 
 COPY --from=build-openssl /opt/openssl-0.9.8h /opt/openssl-0.9.8h
 
@@ -162,13 +165,16 @@ FROM build-gcc AS build-php
 
 WORKDIR /srv/php-5.2.17
 
-RUN wget https://museum.php.net/php5/php-5.2.17.tar.gz -O /srv/php-5.2.17.tar.gz && \
-    tar -xvf /srv/php-5.2.17.tar.gz  --one-top-level=php-5.2.17 --strip-components=1 -C /srv/ && \
-    rm /srv/php-5.2.17.tar.gz
+RUN wget --no-verbose https://museum.php.net/php5/php-5.2.17.tar.gz \
+    -O /srv/php-5.2.17.tar.gz
+RUN tar -xf /srv/php-5.2.17.tar.gz  \
+    --one-top-level=php-5.2.17 \
+    --strip-components=1 \
+    -C /srv/
 
 # oracle
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
+    --mount=type=cache,target=/var/lib/apt,sharing=private \
     apt update && \
     apt install libaio-dev -y
 
@@ -187,8 +193,8 @@ RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ \
     && ln -s /usr/lib/x86_64-linux-gnu/libpng.so /usr/lib/
 
 # other libs
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
+    --mount=type=cache,target=/var/lib/apt,sharing=private \
     apt update && \
     apt install libpq-dev libgd-dev libmcrypt-dev libltdl-dev -y
 
@@ -251,9 +257,12 @@ FROM build-php AS build-xdebug
 
 WORKDIR /srv/xdebug-2.2.7
 
-RUN wget https://github.com/xdebug/xdebug/archive/refs/tags/XDEBUG_2_2_7.tar.gz -O /srv/xdebug-2.2.7.tar.gz && \
-    tar -xvf /srv/xdebug-2.2.7.tar.gz --one-top-level=xdebug-2.2.7 --strip-components=1 -C /srv/ && \
-    rm /srv/xdebug-2.2.7.tar.gz
+RUN wget --no-verbose https://github.com/xdebug/xdebug/archive/refs/tags/XDEBUG_2_2_7.tar.gz \
+    -O /srv/xdebug-2.2.7.tar.gz
+RUN tar -xf /srv/xdebug-2.2.7.tar.gz \
+    --one-top-level=xdebug-2.2.7 \
+    --strip-components=1 \
+    -C /srv/
 
 COPY --from=build-php /opt/php-5.2.17 /opt/php-5.2.17
 
@@ -267,17 +276,18 @@ RUN make install
 # opcache-status
 FROM build-base AS build-opcache-status
 
-RUN mkdir -p /srv/opcache && \
-    wget https://raw.githubusercontent.com/rlerdorf/opcache-status/refs/heads/master/opcache.php -O /srv/opcache/index.php
+RUN mkdir -p /srv/opcache
+RUN wget --no-verbose https://raw.githubusercontent.com/rlerdorf/opcache-status/refs/heads/master/opcache.php \
+    -O /srv/opcache/index.php
 
 ## php zendopcache-7.0.5
 FROM build-php AS build-zendopcache
 
 WORKDIR /srv/zendopcache-7.0.5
 
-RUN wget https://pecl.php.net/get/zendopcache-7.0.5.tgz -O /srv/zendopcache-7.0.5.tar.gz && \
-    tar -xvf /srv/zendopcache-7.0.5.tar.gz -C /srv/ && \
-    rm /srv/zendopcache-7.0.5.tar.gz
+RUN wget --no-verbose https://pecl.php.net/get/zendopcache-7.0.5.tgz \
+    -O /srv/zendopcache-7.0.5.tar.gz
+RUN tar -xf /srv/zendopcache-7.0.5.tar.gz -C /srv/
 
 COPY --from=build-php /opt/php-5.2.17 /opt/php-5.2.17
 
@@ -297,8 +307,8 @@ LABEL org.opencontainers.image.description="Functional docker image for legacy P
 WORKDIR /srv/htdocs
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
+    --mount=type=cache,target=/var/lib/apt,sharing=private \
     apt update \
     && apt install locales libltdl7 libaio1 libnsl2 libpq5 libgd3 libmcrypt4 ssh -y
 
