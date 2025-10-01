@@ -2,8 +2,8 @@ FROM debian:12-slim AS build-base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
-    --mount=type=cache,target=/var/lib/apt,sharing=private \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-base-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-base-apt \
     apt update  \
     && apt install build-essential wget vim -y
 
@@ -16,8 +16,8 @@ RUN wget --no-verbose https://ftp.gnu.org/gnu/gmp/gmp-4.3.2.tar.gz \
     -O /srv/gmp-4.3.2.tar.gz
 RUN tar -xf /srv/gmp-4.3.2.tar.gz -C /srv/
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
-    --mount=type=cache,target=/var/lib/apt,sharing=private \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-base-gmp \
+    --mount=type=cache,target=/var/lib/apt,id=cache-base-gmp \
     apt update  \
     && apt install m4 -y
 
@@ -173,8 +173,8 @@ RUN tar -xf /srv/php-5.2.17.tar.gz  \
     -C /srv/
 
 # oracle
-RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
-    --mount=type=cache,target=/var/lib/apt,sharing=private \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-base-php \
+    --mount=type=cache,target=/var/lib/apt,id=cache-base-php \
     apt update && \
     apt install libaio-dev -y
 
@@ -193,8 +193,8 @@ RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ \
     && ln -s /usr/lib/x86_64-linux-gnu/libpng.so /usr/lib/
 
 # other libs
-RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
-    --mount=type=cache,target=/var/lib/apt,sharing=private \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-base-php \
+    --mount=type=cache,target=/var/lib/apt,id=cache-base-php \
     apt update && \
     apt install libpq-dev libgd-dev libmcrypt-dev libltdl-dev -y
 
@@ -307,8 +307,8 @@ LABEL org.opencontainers.image.description="Functional docker image for legacy P
 WORKDIR /srv/htdocs
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN --mount=type=cache,target=/var/cache/apt,sharing=private \
-    --mount=type=cache,target=/var/lib/apt,sharing=private \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-base-release \
+    --mount=type=cache,target=/var/lib/apt,id=cache-base-release \
     apt update \
     && apt install locales libltdl7 libaio1 libnsl2 libpq5 libgd3 libmcrypt4 ssh -y
 
