@@ -1,4 +1,4 @@
-FROM debian:12-slim AS build-base
+FROM debian:12.12-slim AS build-base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -12,7 +12,7 @@ FROM build-base AS build-gmp
 
 WORKDIR /srv/gmp-4.3.2
 
-RUN wget --no-verbose https://ftp.gnu.org/gnu/gmp/gmp-4.3.2.tar.gz \
+RUN wget --no-verbose https://ftpmirror.gnu.org/gmp/gmp-4.3.2.tar.gz \
     -O /srv/gmp-4.3.2.tar.gz
 RUN tar -xf /srv/gmp-4.3.2.tar.gz -C /srv/
 
@@ -30,7 +30,7 @@ FROM build-base AS build-mpfr
 
 WORKDIR /srv/mpfr-2.4.2
 
-RUN wget --no-verbose https://ftp.gnu.org/gnu/mpfr/mpfr-2.4.2.tar.gz \
+RUN wget --no-verbose https://ftpmirror.gnu.org/mpfr/mpfr-2.4.2.tar.gz \
     -O /srv/mpfr-2.4.2.tar.gz
 RUN tar -xf /srv/mpfr-2.4.2.tar.gz -C /srv/
 
@@ -47,7 +47,7 @@ FROM build-base AS build-mpc
 
 WORKDIR /srv/mpc-1.0.1
 
-RUN wget --no-verbose https://ftp.gnu.org/gnu/mpc/mpc-1.0.1.tar.gz \
+RUN wget --no-verbose https://ftpmirror.gnu.org/mpc/mpc-1.0.1.tar.gz \
     -O /srv/mpc-1.0.1.tar.gz
 RUN tar -xf /srv/mpc-1.0.1.tar.gz -C /srv/
 
@@ -66,7 +66,7 @@ FROM build-base AS build-gcc
 
 WORKDIR /srv/gcc-8.2.0
 
-RUN wget --no-verbose https://ftp.gnu.org/gnu/gcc/gcc-8.2.0/gcc-8.2.0.tar.gz \
+RUN wget --no-verbose https://ftpmirror.gnu.org/gcc/gcc-8.2.0/gcc-8.2.0.tar.gz \
     -O /srv/gcc-8.2.0.tar.gz
 RUN tar -xf /srv/gcc-8.2.0.tar.gz -C /srv/
 
@@ -299,7 +299,7 @@ RUN make -j$(nproc)
 RUN make install
 
 # release
-FROM debian:12-slim AS release
+FROM debian:12.12-slim AS release
 
 LABEL org.opencontainers.image.source=https://github.com/clagomess/docker-php-5.2
 LABEL org.opencontainers.image.description="Functional docker image for legacy PHP 5.2 + HTTPD + XDEBUG"

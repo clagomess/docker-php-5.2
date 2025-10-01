@@ -30,18 +30,19 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build
-        run: docker build -t ghcr.io/clagomess/docker-php-5.2 -f Dockerfile .
+        run: |
+          docker build \
+          -t ghcr.io/clagomess/docker-php-5.2:latest \
+          -t ghcr.io/clagomess/docker-php-5.2:${{github.run_number}} \
+          -t docker.io/clagomess/docker-php-5.2:latest \
+          -t docker.io/clagomess/docker-php-5.2:${{github.run_number}} \
+          -f Dockerfile .
 
       - name: Push GHCR
         run: |
-          docker tag ghcr.io/clagomess/docker-php-5.2 ghcr.io/clagomess/docker-php-5.2:${{github.run_number}}
-          docker push ghcr.io/clagomess/docker-php-5.2:${{github.run_number}}
-          docker push ghcr.io/clagomess/docker-php-5.2:latest
+          docker push ghcr.io/clagomess/docker-php-5.2 --all-tags
 
       - name: Push DockerHub
         run: |
-          docker tag ghcr.io/clagomess/docker-php-5.2 docker.io/clagomess/docker-php-5.2:${{github.run_number}}
-          docker tag ghcr.io/clagomess/docker-php-5.2 docker.io/clagomess/docker-php-5.2:latest
-          docker push docker.io/clagomess/docker-php-5.2:${{github.run_number}}
-          docker push docker.io/clagomess/docker-php-5.2:latest
+          docker push docker.io/clagomess/docker-php-5.2 --all-tags
           
