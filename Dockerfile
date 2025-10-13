@@ -1,11 +1,11 @@
-FROM debian:12.12-slim AS build-base
+FROM debian:13.1-slim AS build-base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-base-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-base-apt \
-    apt update  \
-    && apt install build-essential wget vim -y
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+    apt update \
+    && apt install wget vim xz-utils -y
 
 # gmp-4.3.2
 FROM build-base AS build-gmp
@@ -16,12 +16,14 @@ RUN wget --no-verbose https://ftpmirror.gnu.org/gmp/gmp-4.3.2.tar.gz \
     -O /srv/gmp-4.3.2.tar.gz
 RUN tar -xf /srv/gmp-4.3.2.tar.gz -C /srv/
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-base-gmp \
-    --mount=type=cache,target=/var/lib/apt,id=cache-base-gmp \
-    apt update  \
-    && apt install m4 -y
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+    apt update \
+    && apt install gcc-12 m4 make -y
 
-RUN ./configure --prefix /opt/gmp-4.3.2
+RUN CC=gcc-12 \
+    ./configure \
+    --prefix /opt/gmp-4.3.2
 RUN make -j$(nproc)
 RUN make install
 
@@ -33,6 +35,11 @@ WORKDIR /srv/mpfr-2.4.2
 RUN wget --no-verbose https://ftpmirror.gnu.org/mpfr/mpfr-2.4.2.tar.gz \
     -O /srv/mpfr-2.4.2.tar.gz
 RUN tar -xf /srv/mpfr-2.4.2.tar.gz -C /srv/
+
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+    apt update \
+    && apt install gcc make -y
 
 COPY --from=build-gmp /opt/gmp-4.3.2 /opt/gmp-4.3.2
 
@@ -50,6 +57,11 @@ WORKDIR /srv/mpc-1.0.1
 RUN wget --no-verbose https://ftpmirror.gnu.org/mpc/mpc-1.0.1.tar.gz \
     -O /srv/mpc-1.0.1.tar.gz
 RUN tar -xf /srv/mpc-1.0.1.tar.gz -C /srv/
+
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+    apt update \
+    && apt install gcc make -y
 
 COPY --from=build-gmp /opt/gmp-4.3.2 /opt/gmp-4.3.2
 COPY --from=build-mpfr /opt/mpfr-2.4.2 /opt/mpfr-2.4.2
@@ -69,6 +81,11 @@ WORKDIR /srv/gcc-8.2.0
 RUN wget --no-verbose https://ftpmirror.gnu.org/gcc/gcc-8.2.0/gcc-8.2.0.tar.gz \
     -O /srv/gcc-8.2.0.tar.gz
 RUN tar -xf /srv/gcc-8.2.0.tar.gz -C /srv/
+
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+    apt update \
+    && apt install build-essential -y
 
 COPY --from=build-gmp /opt/gmp-4.3.2 /opt/gmp-4.3.2
 COPY --from=build-mpfr /opt/mpfr-2.4.2 /opt/mpfr-2.4.2
@@ -103,7 +120,16 @@ RUN wget --no-verbose https://archive.apache.org/dist/httpd/httpd-2.2.3.tar.gz \
     -O /srv/httpd-2.2.3.tar.gz
 RUN tar -xf /srv/httpd-2.2.3.tar.gz -C /srv/
 
-RUN ./configure --enable-so --enable-rewrite --prefix /opt/httpd-2.2.3
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+    apt update  \
+    && apt install gcc-12 make -y
+
+RUN CC=gcc-12 \
+    ./configure \
+    --enable-so \
+    --enable-rewrite \
+    --prefix /opt/httpd-2.2.3
 RUN make -j$(nproc)
 RUN make install
 
@@ -116,8 +142,13 @@ FROM build-base AS build-libxml2
 WORKDIR /srv/libxml2-2.8.0
 
 RUN wget --no-verbose https://download.gnome.org/sources/libxml2/2.8/libxml2-2.8.0.tar.xz \
-    -O /srv/libxml2-2.8.0.tar.gz
-RUN tar -xf /srv/libxml2-2.8.0.tar.gz -C /srv/
+    -O /srv/libxml2-2.8.0.tar.xz
+RUN tar -xf /srv/libxml2-2.8.0.tar.xz -C /srv/
+
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+    apt update  \
+    && apt install gcc make -y
 
 RUN ./configure --prefix /opt/libxml2-2.8.0
 RUN make -j$(nproc)
@@ -134,6 +165,11 @@ RUN tar -xf /srv/openssl.tar.gz \
     --one-top-level=openssl-0.9.8h \
     --strip-components=1 \
     -C /srv/
+
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+    apt update  \
+    && apt install gcc make -y
 
 RUN ./config \
     --prefix=/opt/openssl-0.9.8h  \
@@ -152,9 +188,16 @@ RUN wget --no-verbose https://curl.se/download/archeology/curl-7.19.7.tar.gz \
     -O /srv/curl-7.19.7.tar.gz
 RUN tar -xf /srv/curl-7.19.7.tar.gz -C /srv/
 
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+    apt update  \
+    && apt install gcc-12 make -y
+
 COPY --from=build-openssl /opt/openssl-0.9.8h /opt/openssl-0.9.8h
 
-RUN ./configure --prefix=/opt/curl-7.19.7 \
+RUN CC=gcc-12 \
+    ./configure \
+    --prefix=/opt/curl-7.19.7 \
     --with-ssl=/opt/openssl-0.9.8h \
     --disable-shared
 RUN make -j$(nproc)
@@ -173,10 +216,11 @@ RUN tar -xf /srv/php-5.2.17.tar.gz  \
     -C /srv/
 
 # oracle
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-base-php \
-    --mount=type=cache,target=/var/lib/apt,id=cache-base-php \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
     apt update && \
-    apt install libaio-dev -y
+    apt install libaio-dev -y && \
+    ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
 
 ADD ./instantclient-basic-linux.x64-11.2.0.4.0.tar.gz /opt/oracle
 ADD ./instantclient-sdk-linux.x64-11.2.0.4.0.tar.gz /opt/oracle
@@ -193,8 +237,8 @@ RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ \
     && ln -s /usr/lib/x86_64-linux-gnu/libpng.so /usr/lib/
 
 # other libs
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-base-php \
-    --mount=type=cache,target=/var/lib/apt,id=cache-base-php \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
     apt update && \
     apt install libpq-dev libgd-dev libmcrypt-dev libltdl-dev -y
 
@@ -299,7 +343,7 @@ RUN make -j$(nproc)
 RUN make install
 
 # release
-FROM debian:12.12-slim AS release
+FROM debian:13.1-slim AS release
 
 LABEL org.opencontainers.image.source=https://github.com/clagomess/docker-php-5.2
 LABEL org.opencontainers.image.description="Functional docker image for legacy PHP 5.2 + HTTPD + XDEBUG"
@@ -307,10 +351,11 @@ LABEL org.opencontainers.image.description="Functional docker image for legacy P
 WORKDIR /srv/htdocs
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-base-release \
-    --mount=type=cache,target=/var/lib/apt,id=cache-base-release \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
     apt update \
-    && apt install locales libltdl7 libaio1 libnsl2 libpq5 libgd3 libmcrypt4 ssh -y
+    && apt install locales libltdl7 libaio1t64 libnsl2 libpq5 libgd3 libmcrypt4 ssh -y \
+    && ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
 
 # add locale
 RUN locale-gen pt_BR.UTF-8 \
