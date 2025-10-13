@@ -2,8 +2,8 @@ FROM debian:13.1-slim AS build-base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-base \
+    --mount=type=cache,target=/var/lib/apt,id=cache-base \
     apt update \
     && apt install wget vim xz-utils -y
 
@@ -16,8 +16,8 @@ RUN wget --no-verbose https://ftpmirror.gnu.org/gmp/gmp-4.3.2.tar.gz \
     -O /srv/gmp-4.3.2.tar.gz
 RUN tar -xf /srv/gmp-4.3.2.tar.gz -C /srv/
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-gmp \
+    --mount=type=cache,target=/var/lib/apt,id=cache-gmp \
     apt update \
     && apt install gcc-12 m4 make -y
 
@@ -36,8 +36,8 @@ RUN wget --no-verbose https://ftpmirror.gnu.org/mpfr/mpfr-2.4.2.tar.gz \
     -O /srv/mpfr-2.4.2.tar.gz
 RUN tar -xf /srv/mpfr-2.4.2.tar.gz -C /srv/
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-mpfr \
+    --mount=type=cache,target=/var/lib/apt,id=cache-mpfr \
     apt update \
     && apt install gcc make -y
 
@@ -58,8 +58,8 @@ RUN wget --no-verbose https://ftpmirror.gnu.org/mpc/mpc-1.0.1.tar.gz \
     -O /srv/mpc-1.0.1.tar.gz
 RUN tar -xf /srv/mpc-1.0.1.tar.gz -C /srv/
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-mpc \
+    --mount=type=cache,target=/var/lib/apt,id=cache-mpc \
     apt update \
     && apt install gcc make -y
 
@@ -82,8 +82,8 @@ RUN wget --no-verbose https://ftpmirror.gnu.org/gcc/gcc-8.2.0/gcc-8.2.0.tar.gz \
     -O /srv/gcc-8.2.0.tar.gz
 RUN tar -xf /srv/gcc-8.2.0.tar.gz -C /srv/
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-gcc \
+    --mount=type=cache,target=/var/lib/apt,id=cache-gcc \
     apt update \
     && apt install build-essential -y
 
@@ -120,8 +120,8 @@ RUN wget --no-verbose https://archive.apache.org/dist/httpd/httpd-2.2.3.tar.gz \
     -O /srv/httpd-2.2.3.tar.gz
 RUN tar -xf /srv/httpd-2.2.3.tar.gz -C /srv/
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-httpd \
+    --mount=type=cache,target=/var/lib/apt,id=cache-httpd \
     apt update  \
     && apt install gcc-12 make -y
 
@@ -145,8 +145,8 @@ RUN wget --no-verbose https://download.gnome.org/sources/libxml2/2.8/libxml2-2.8
     -O /srv/libxml2-2.8.0.tar.xz
 RUN tar -xf /srv/libxml2-2.8.0.tar.xz -C /srv/
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-libxml2 \
+    --mount=type=cache,target=/var/lib/apt,id=cache-libxml2 \
     apt update  \
     && apt install gcc make -y
 
@@ -166,8 +166,8 @@ RUN tar -xf /srv/openssl.tar.gz \
     --strip-components=1 \
     -C /srv/
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-openssl \
+    --mount=type=cache,target=/var/lib/apt,id=cache-openssl \
     apt update  \
     && apt install gcc make -y
 
@@ -188,8 +188,8 @@ RUN wget --no-verbose https://curl.se/download/archeology/curl-7.19.7.tar.gz \
     -O /srv/curl-7.19.7.tar.gz
 RUN tar -xf /srv/curl-7.19.7.tar.gz -C /srv/
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-curl \
+    --mount=type=cache,target=/var/lib/apt,id=cache-curl \
     apt update  \
     && apt install gcc-12 make -y
 
@@ -216,8 +216,8 @@ RUN tar -xf /srv/php-5.2.17.tar.gz  \
     -C /srv/
 
 # oracle
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-gcc \
+    --mount=type=cache,target=/var/lib/apt,id=cache-gcc \
     apt update && \
     apt install libaio-dev -y && \
     ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
@@ -237,8 +237,8 @@ RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ \
     && ln -s /usr/lib/x86_64-linux-gnu/libpng.so /usr/lib/
 
 # other libs
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-php \
+    --mount=type=cache,target=/var/lib/apt,id=cache-php \
     apt update && \
     apt install libpq-dev libgd-dev libmcrypt-dev libltdl-dev -y
 
@@ -351,8 +351,8 @@ LABEL org.opencontainers.image.description="Functional docker image for legacy P
 WORKDIR /srv/htdocs
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-release \
+    --mount=type=cache,target=/var/lib/apt,id=cache-release \
     apt update \
     && apt install locales libltdl7 libaio1t64 libnsl2 libpq5 libgd3 libmcrypt4 ssh -y \
     && ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
