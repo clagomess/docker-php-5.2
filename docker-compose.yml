@@ -1,6 +1,6 @@
 services:
   web:
-    image: ghcr.io/clagomess/docker-php-5.2:oracle-instantclient-23
+    image: ghcr.io/clagomess/docker-php-5.2
     links:
       - "oracle:oracle-host"
     ports:

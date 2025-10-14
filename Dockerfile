@@ -1,10 +1,8 @@
 FROM debian:13.1-slim AS build-base
 
-ENV DEBIAN_FRONTEND=noninteractive
-
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-base \
     --mount=type=cache,target=/var/lib/apt,id=cache-base \
-    apt update \
+    DEBIAN_FRONTEND=noninteractive apt update \
     && apt install wget vim xz-utils -y
 
 # gmp-4.3.2
@@ -18,11 +16,12 @@ RUN tar -xf /srv/gmp-4.3.2.tar.gz -C /srv/
 
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-gmp \
     --mount=type=cache,target=/var/lib/apt,id=cache-gmp \
-    apt update \
+    DEBIAN_FRONTEND=noninteractive apt update \
     && apt install gcc-12 m4 make -y
 
 RUN CC=gcc-12 \
     ./configure \
+    --build=$(uname -m)-unknown-linux-gnu \
     --prefix /opt/gmp-4.3.2
 RUN make -j$(nproc)
 RUN make install
@@ -38,12 +37,13 @@ RUN tar -xf /srv/mpfr-2.4.2.tar.gz -C /srv/
 
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-mpfr \
     --mount=type=cache,target=/var/lib/apt,id=cache-mpfr \
-    apt update \
+    DEBIAN_FRONTEND=noninteractive apt update \
     && apt install gcc make -y
 
 COPY --from=build-gmp /opt/gmp-4.3.2 /opt/gmp-4.3.2
 
 RUN ./configure \
+    --build=$(uname -m)-unknown-linux-gnu \
     --prefix /opt/mpfr-2.4.2 \
     --with-gmp=/opt/gmp-4.3.2
 RUN make -j$(nproc)
@@ -60,7 +60,7 @@ RUN tar -xf /srv/mpc-1.0.1.tar.gz -C /srv/
 
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-mpc \
     --mount=type=cache,target=/var/lib/apt,id=cache-mpc \
-    apt update \
+    DEBIAN_FRONTEND=noninteractive apt update \
     && apt install gcc make -y
 
 COPY --from=build-gmp /opt/gmp-4.3.2 /opt/gmp-4.3.2
@@ -84,15 +84,15 @@ RUN tar -xf /srv/gcc-8.2.0.tar.gz -C /srv/
 
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-gcc \
     --mount=type=cache,target=/var/lib/apt,id=cache-gcc \
-    apt update \
+    DEBIAN_FRONTEND=noninteractive apt update \
     && apt install build-essential -y
 
 COPY --from=build-gmp /opt/gmp-4.3.2 /opt/gmp-4.3.2
 COPY --from=build-mpfr /opt/mpfr-2.4.2 /opt/mpfr-2.4.2
 COPY --from=build-mpc /opt/mpc-1.0.1 /opt/mpc-1.0.1
 
-RUN ln -s /opt/mpfr-2.4.2/lib/libmpfr.so.1 /lib/x86_64-linux-gnu/libmpfr.so.1 && \
-    ln -s /opt/gmp-4.3.2/lib/libgmp.so.3 /lib/x86_64-linux-gnu/libgmp.so.3 && \
+RUN ln -s /opt/mpfr-2.4.2/lib/libmpfr.so.1 /lib/$(uname -m)-linux-gnu/libmpfr.so.1 && \
+    ln -s /opt/gmp-4.3.2/lib/libgmp.so.3 /lib/$(uname -m)-linux-gnu/libgmp.so.3 && \
     ldconfig
 
 # GMP 4.2+, MPFR 2.4.0+ and MPC 0.8.0+.
@@ -122,11 +122,12 @@ RUN tar -xf /srv/httpd-2.2.3.tar.gz -C /srv/
 
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-httpd \
     --mount=type=cache,target=/var/lib/apt,id=cache-httpd \
-    apt update  \
+    DEBIAN_FRONTEND=noninteractive apt update  \
     && apt install gcc-12 make -y
 
 RUN CC=gcc-12 \
     ./configure \
+    --build=$(uname -m)-unknown-linux-gnu \
     --enable-so \
     --enable-rewrite \
     --prefix /opt/httpd-2.2.3
@@ -147,10 +148,12 @@ RUN tar -xf /srv/libxml2-2.8.0.tar.xz -C /srv/
 
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-libxml2 \
     --mount=type=cache,target=/var/lib/apt,id=cache-libxml2 \
-    apt update  \
+    DEBIAN_FRONTEND=noninteractive apt update  \
     && apt install gcc make -y
 
-RUN ./configure --prefix /opt/libxml2-2.8.0
+RUN ./configure \
+    --build=$(uname -m)-unknown-linux-gnu \
+    --prefix /opt/libxml2-2.8.0
 RUN make -j$(nproc)
 RUN make install
 
@@ -168,7 +171,7 @@ RUN tar -xf /srv/openssl.tar.gz \
 
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-openssl \
     --mount=type=cache,target=/var/lib/apt,id=cache-openssl \
-    apt update  \
+    DEBIAN_FRONTEND=noninteractive apt update  \
     && apt install gcc make -y
 
 RUN ./config \
@@ -190,13 +193,14 @@ RUN tar -xf /srv/curl-7.19.7.tar.gz -C /srv/
 
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-curl \
     --mount=type=cache,target=/var/lib/apt,id=cache-curl \
-    apt update  \
+    DEBIAN_FRONTEND=noninteractive apt update  \
     && apt install gcc-12 make -y
 
 COPY --from=build-openssl /opt/openssl-0.9.8h /opt/openssl-0.9.8h
 
 RUN CC=gcc-12 \
     ./configure \
+    --build=$(uname -m)-unknown-linux-gnu \
     --prefix=/opt/curl-7.19.7 \
     --with-ssl=/opt/openssl-0.9.8h \
     --disable-shared
@@ -208,17 +212,23 @@ FROM build-base AS build-oracle
 
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-oracle \
     --mount=type=cache,target=/var/lib/apt,id=cache-oracle \
-    apt update && \
+    DEBIAN_FRONTEND=noninteractive apt update && \
     apt install unzip -y
 
 RUN mkdir -p /opt/oracle/instantclient
 
-RUN wget --no-verbose https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linuxx64.zip \
+RUN URL=$([ "$(uname -m)" = "x86_64" ] && \
+      echo "https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linuxx64.zip" || \
+      echo "https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux-arm64.zip"); \
+    wget --no-verbose $URL \
     -O /tmp/instantclient-basic.zip
 RUN unzip /tmp/instantclient-basic.zip -d /tmp/instantclient-basic && \
     mv /tmp/instantclient-basic/instantclient_*/* /opt/oracle/instantclient/
 
-RUN wget --no-verbose https://download.oracle.com/otn_software/linux/instantclient/instantclient-sdk-linuxx64.zip \
+RUN URL=$([ "$(uname -m)" = "x86_64" ] && \
+      echo "https://download.oracle.com/otn_software/linux/instantclient/instantclient-sdk-linuxx64.zip" || \
+      echo "https://download.oracle.com/otn_software/linux/instantclient/instantclient-sdk-linux-arm64.zip"); \
+    wget --no-verbose $URL \
     -O /tmp/instantclient-sdk.zip
 RUN unzip /tmp/instantclient-sdk.zip -d /tmp/instantclient-sdk && \
     mv /tmp/instantclient-sdk/instantclient_*/* /opt/oracle/instantclient/
@@ -243,9 +253,9 @@ RUN tar -xf /srv/php-5.2.17.tar.gz  \
 # oracle
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-php \
     --mount=type=cache,target=/var/lib/apt,id=cache-php \
-    apt update && \
+    DEBIAN_FRONTEND=noninteractive apt update && \
     apt install libaio-dev -y && \
-    ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
+    ln -s /usr/lib/$(uname -m)-linux-gnu/libaio.so.1t64 /usr/lib/$(uname -m)-linux-gnu/libaio.so.1
 
 COPY --from=build-oracle /opt/oracle /opt/oracle
 
@@ -253,13 +263,13 @@ RUN echo "/opt/oracle/instantclient" > /etc/ld.so.conf.d/oracle-instantclient.co
     && ldconfig
 
 # jpg/png
-RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ \
-    && ln -s /usr/lib/x86_64-linux-gnu/libpng.so /usr/lib/
+RUN ln -s /usr/lib/$(uname -m)-linux-gnu/libjpeg.so /usr/lib/ \
+    && ln -s /usr/lib/$(uname -m)-linux-gnu/libpng.so /usr/lib/
 
 # other libs
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-php \
     --mount=type=cache,target=/var/lib/apt,id=cache-php \
-    apt update && \
+    DEBIAN_FRONTEND=noninteractive apt update && \
     apt install libpq-dev libgd-dev libmcrypt-dev libltdl-dev -y
 
 COPY --from=build-httpd /opt/httpd-2.2.3 /opt/httpd-2.2.3
@@ -275,6 +285,7 @@ RUN ldconfig -n /opt/gcc-8.2.0/lib/../lib64 && \
 
 # ./configure --help
 RUN ./configure \
+    --host=$(uname -m)-unknown-linux-gnu \
     --prefix=/opt/php-5.2.17 \
     --with-gnu-ld \
     --with-config-file-scan-dir=/opt/php-5.2.17/php.ini.d \
@@ -332,6 +343,7 @@ COPY --from=build-php /opt/php-5.2.17 /opt/php-5.2.17
 
 RUN /opt/php-5.2.17/bin/phpize
 RUN ./configure \
+    --build=$(uname -m)-unknown-linux-gnu \
     --enable-xdebug \
     --with-php-config=/opt/php-5.2.17/bin/php-config
 RUN make -j$(nproc)
@@ -358,6 +370,7 @@ COPY --from=build-php /opt/php-5.2.17 /opt/php-5.2.17
 RUN /opt/php-5.2.17/bin/phpize
 
 RUN ./configure \
+    --build=$(uname -m)-unknown-linux-gnu \
     --with-php-config=/opt/php-5.2.17/bin/php-config
 RUN make -j$(nproc)
 RUN make install
@@ -370,12 +383,11 @@ LABEL org.opencontainers.image.description="Functional docker image for legacy P
 
 WORKDIR /srv/htdocs
 
-ENV DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-release \
     --mount=type=cache,target=/var/lib/apt,id=cache-release \
-    apt update \
+    DEBIAN_FRONTEND=noninteractive apt update \
     && apt install locales libltdl7 libaio1t64 libnsl2 libpq5 libgd3 libmcrypt4 ssh -y \
-    && ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
+    && ln -s /usr/lib/$(uname -m)-linux-gnu/libaio.so.1t64 /usr/lib/$(uname -m)-linux-gnu/libaio.so.1
 
 # add locale
 RUN locale-gen pt_BR.UTF-8 \
