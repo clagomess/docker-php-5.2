@@ -203,6 +203,31 @@ RUN CC=gcc-12 \
 RUN make -j$(nproc)
 RUN make install
 
+# oracle
+FROM build-base AS build-oracle
+
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-oracle \
+    --mount=type=cache,target=/var/lib/apt,id=cache-oracle \
+    apt update && \
+    apt install unzip -y
+
+RUN mkdir -p /opt/oracle/instantclient
+
+RUN wget --no-verbose https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linuxx64.zip \
+    -O /tmp/instantclient-basic.zip
+RUN unzip /tmp/instantclient-basic.zip -d /tmp/instantclient-basic && \
+    mv /tmp/instantclient-basic/instantclient_*/* /opt/oracle/instantclient/
+
+RUN wget --no-verbose https://download.oracle.com/otn_software/linux/instantclient/instantclient-sdk-linuxx64.zip \
+    -O /tmp/instantclient-sdk.zip
+RUN unzip /tmp/instantclient-sdk.zip -d /tmp/instantclient-sdk && \
+    mv /tmp/instantclient-sdk/instantclient_*/* /opt/oracle/instantclient/
+
+RUN ln -s /opt/oracle/instantclient/libnnz.so /opt/oracle/instantclient/libnnz11.so && \
+    mkdir /opt/oracle/client && \
+    ln -s /opt/oracle/instantclient/sdk/include /opt/oracle/client/include && \
+    ln -s /opt/oracle/instantclient /opt/oracle/client/lib
+
 # php-5.2.17
 FROM build-gcc AS build-php
 
@@ -216,21 +241,16 @@ RUN tar -xf /srv/php-5.2.17.tar.gz  \
     -C /srv/
 
 # oracle
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-gcc \
-    --mount=type=cache,target=/var/lib/apt,id=cache-gcc \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-php \
+    --mount=type=cache,target=/var/lib/apt,id=cache-php \
     apt update && \
     apt install libaio-dev -y && \
     ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
 
-ADD ./instantclient-basic-linux.x64-11.2.0.4.0.tar.gz /opt/oracle
-ADD ./instantclient-sdk-linux.x64-11.2.0.4.0.tar.gz /opt/oracle
-RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclient.conf \
-    && ldconfig
+COPY --from=build-oracle /opt/oracle /opt/oracle
 
-RUN ln -s /opt/oracle/instantclient_11_2/libclntsh.so.11.1 /opt/oracle/instantclient_11_2/libclntsh.so \
-    && mkdir /opt/oracle/client \
-    && ln -s /opt/oracle/instantclient_11_2/sdk/include /opt/oracle/client/include \
-    && ln -s /opt/oracle/instantclient_11_2 /opt/oracle/client/lib
+RUN echo "/opt/oracle/instantclient" > /etc/ld.so.conf.d/oracle-instantclient.conf \
+    && ldconfig
 
 # jpg/png
 RUN ln -s /usr/lib/x86_64-linux-gnu/libjpeg.so /usr/lib/ \
@@ -282,7 +302,7 @@ RUN ./configure \
     --with-openssl=/opt/openssl-0.9.8h \
     --with-gettext \
     --with-mime-magic=/opt/httpd-2.2.3/conf/magic \
-    --with-oci8=instantclient,/opt/oracle/instantclient_11_2 \
+    --with-oci8=instantclient,/opt/oracle/instantclient \
     --with-pdo-oci=instantclient,/opt/oracle,11.2 \
     --with-ttf \
     --with-png-dir=/usr \
@@ -368,36 +388,24 @@ RUN useradd -m -s /bin/bash -d /srv/htdocs php && \
     echo "php:php" | chpasswd && \
     usermod -aG www-data php
 
-# oracle
-ADD ./instantclient-basic-linux.x64-11.2.0.4.0.tar.gz /opt/oracle
-RUN echo "/opt/oracle/instantclient_11_2" > /etc/ld.so.conf.d/oracle-instantclient.conf && \
-    ldconfig
-
-COPY ./init.sh /opt/init.sh
-
-# openssl
+# copy libs
+COPY --from=build-oracle /opt/oracle /opt/oracle
 COPY --from=build-openssl /opt/openssl-0.9.8h /opt/openssl-0.9.8h
-RUN echo "/opt/openssl-0.9.8h/lib" > /etc/ld.so.conf.d/openssl.conf && \
-    ldconfig
-
-# curl
 COPY --from=build-curl /opt/curl-7.19.7 /opt/curl-7.19.7
-RUN ln -s /opt/curl-7.19.7/bin/curl /usr/bin/curl
-
-# libxml
 COPY --from=build-libxml2 /opt/libxml2-2.8.0 /opt/libxml2-2.8.0
-RUN echo "/opt/libxml2-2.8.0/lib" > /etc/ld.so.conf.d/libxml2.conf && \
-    ldconfig
-
 COPY --from=build-opcache-status /srv/opcache /srv/opcache
-
-# php
 COPY --from=build-php /opt/php-5.2.17 /opt/php-5.2.17
-RUN ln -s /opt/php-5.2.17/bin/php /usr/bin/php
-
-COPY --from=build-zendopcache /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/opcache.so /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/opcache.so
 COPY --from=build-php /opt/httpd-2.2.3 /opt/httpd-2.2.3
+COPY --from=build-zendopcache /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/opcache.so /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/opcache.so
 COPY --from=build-xdebug /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so
+
+# config libs
+RUN echo "/opt/oracle/instantclient" > /etc/ld.so.conf.d/oracle-instantclient.conf && \
+    echo "/opt/openssl-0.9.8h/lib" > /etc/ld.so.conf.d/openssl.conf && \
+    echo "/opt/libxml2-2.8.0/lib" > /etc/ld.so.conf.d/libxml2.conf && \
+    ln -s /opt/curl-7.19.7/bin/curl /usr/bin/curl && \
+    ln -s /opt/php-5.2.17/bin/php /usr/bin/php && \
+    ldconfig
 
 # create log files
 RUN mkdir /var/log/php \
@@ -412,4 +420,5 @@ RUN mkdir /var/log/php \
     && chown www-data:www-data /var/log/apache/error_log
 
 # entrypoint
+COPY ./init.sh /opt/init.sh
 CMD ["bash", "/opt/init.sh"]

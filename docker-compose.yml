@@ -1,7 +1,8 @@
 services:
   web:
-    image: ghcr.io/clagomess/docker-php-5.2
-    network_mode: "bridge"
+    image: ghcr.io/clagomess/docker-php-5.2:oracle-instantclient-23
+    links:
+      - "oracle:oracle-host"
     ports:
       - "8000:80"
       - "2200:22"
@@ -11,3 +12,12 @@ services:
       XDEBUG_REMOTE_ENABLE: 1
       XDEBUG_REMOTE_HOST: host.docker.internal
       XDEBUG_REMOTE_PORT: 9000
+
+  oracle:
+    image: docker.io/gvenzl/oracle-free:23-slim-faststart
+    ports:
+      - "1521:1521"
+    environment:
+      ORACLE_PASSWORD: "010203"
+      APP_USER: "php"
+      APP_USER_PASSWORD: "010203"
