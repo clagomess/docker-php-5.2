@@ -110,6 +110,8 @@ RUN ./configure \
     --disable-libvtv
 RUN make -j$(nproc)
 RUN make install
+RUN ldconfig -n /opt/gcc-8.2.0/lib/../lib64 && \
+    ln -sf /opt/gcc-8.2.0/bin/gcc /usr/bin/gcc
 
 # httpd-2.2.3
 FROM build-base AS build-httpd
@@ -276,12 +278,6 @@ COPY --from=build-httpd /opt/httpd-2.2.3 /opt/httpd-2.2.3
 COPY --from=build-libxml2 /opt/libxml2-2.8.0 /opt/libxml2-2.8.0
 COPY --from=build-openssl /opt/openssl-0.9.8h /opt/openssl-0.9.8h
 COPY --from=build-curl /opt/curl-7.19.7 /opt/curl-7.19.7
-
-# gcc
-COPY --from=build-gcc /opt/gcc-8.2.0 /opt/gcc-8.2.0
-
-RUN ldconfig -n /opt/gcc-8.2.0/lib/../lib64 && \
-    ln -sf /opt/gcc-8.2.0/bin/gcc /usr/bin/gcc
 
 # ./configure --help
 RUN ./configure \
