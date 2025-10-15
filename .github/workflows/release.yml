@@ -65,8 +65,6 @@ jobs:
             image: ghcr.io/clagomess/docker-php-5.2
           - registry: ghcr.io
             image: docker.io/clagomess/docker-php-5.2
-          - tag: latest
-          - tag: ${{github.run_number}}
 
     steps:
       - name: Pull
@@ -90,10 +88,14 @@ jobs:
 
       - name: Create Manifest
         run: |
-          docker manifest create ${{ matrix.image }}:${{ matrix.tag }} \
+          docker manifest create ${{ matrix.image }}:${{github.run_number}} \
+            ${{ matrix.image }}:${{github.run_number}}-x86_64 \
+            ${{ matrix.image }}:${{github.run_number}}-aarch64
+          docker manifest create ${{ matrix.image }}:latest \
             ${{ matrix.image }}:${{github.run_number}}-x86_64 \
             ${{ matrix.image }}:${{github.run_number}}-aarch64
 
       - name: Push
         run: |
-          docker manifest push --purge ${{ matrix.image }}:${{ matrix.tag }}
+          docker manifest push --purge ${{ matrix.image }}:${{github.run_number}}
+          docker manifest push --purge ${{ matrix.image }}:latest
