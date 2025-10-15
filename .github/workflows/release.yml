@@ -10,7 +10,14 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [
+          ubuntu-24.04,
+          ubuntu-24.04-arm
+        ]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
@@ -32,10 +39,8 @@ jobs:
       - name: Build
         run: |
           docker build \
-          -t ghcr.io/clagomess/docker-php-5.2:latest \
-          -t ghcr.io/clagomess/docker-php-5.2:${{github.run_number}} \
-          -t docker.io/clagomess/docker-php-5.2:latest \
-          -t docker.io/clagomess/docker-php-5.2:${{github.run_number}} \
+          -t ghcr.io/clagomess/docker-php-5.2:${{github.run_number}}-$(uname -m) \
+          -t docker.io/clagomess/docker-php-5.2:${{github.run_number}}-$(uname -m) \
           -f Dockerfile .
 
       - name: Push GHCR
@@ -45,4 +50,50 @@ jobs:
       - name: Push DockerHub
         run: |
           docker push docker.io/clagomess/docker-php-5.2 --all-tags
-          
+
+  push-manifest:
+    needs: build
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        registry: [
+          docker.io,
+          ghcr.io
+        ]
+        include:
+          - registry: docker.io
+            image: ghcr.io/clagomess/docker-php-5.2
+          - registry: ghcr.io
+            image: docker.io/clagomess/docker-php-5.2
+          - tag: latest
+          - tag: ${{github.run_number}}
+
+    steps:
+      - name: Pull
+        run: |
+          docker pull ${{ matrix.image }}:${{github.run_number}}-x86_64
+          docker pull ${{ matrix.image }}:${{github.run_number}}-aarch64
+
+      - name: Login DockerHub
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Manifest
+        run: |
+          docker manifest create ${{ matrix.image }}:${{ matrix.tag }} \
+            ${{ matrix.image }}:${{github.run_number}}-x86_64 \
+            ${{ matrix.image }}:${{github.run_number}}-aarch64
+
+      - name: Push
+        run: |
+          docker manifest push --purge ${{ matrix.image }}:${{ matrix.tag }}
