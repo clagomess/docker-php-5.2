@@ -221,7 +221,7 @@ RUN mkdir -p /opt/oracle/instantclient
 
 RUN URL=$([ "$(uname -m)" = "x86_64" ] && \
       echo "https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linuxx64.zip" || \
-      echo "https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linux-arm64.zip"); \
+      echo "https://download.oracle.com/otn_software/linux/instantclient/2326100/instantclient-basic-linux.arm64-23.26.1.0.0.zip"); \
     wget --no-verbose $URL \
     -O /tmp/instantclient-basic.zip
 RUN unzip /tmp/instantclient-basic.zip -d /tmp/instantclient-basic && \
@@ -229,7 +229,7 @@ RUN unzip /tmp/instantclient-basic.zip -d /tmp/instantclient-basic && \
 
 RUN URL=$([ "$(uname -m)" = "x86_64" ] && \
       echo "https://download.oracle.com/otn_software/linux/instantclient/instantclient-sdk-linuxx64.zip" || \
-      echo "https://download.oracle.com/otn_software/linux/instantclient/instantclient-sdk-linux-arm64.zip"); \
+      echo "https://download.oracle.com/otn_software/linux/instantclient/2326100/instantclient-sdk-linux.arm64-23.26.1.0.0.zip"); \
     wget --no-verbose $URL \
     -O /tmp/instantclient-sdk.zip
 RUN unzip /tmp/instantclient-sdk.zip -d /tmp/instantclient-sdk && \
@@ -239,6 +239,38 @@ RUN ln -s /opt/oracle/instantclient/libnnz.so /opt/oracle/instantclient/libnnz11
     mkdir /opt/oracle/client && \
     ln -s /opt/oracle/instantclient/sdk/include /opt/oracle/client/include && \
     ln -s /opt/oracle/instantclient /opt/oracle/client/lib
+
+# mysql-5.0.95
+FROM build-base AS build-mysql
+
+WORKDIR /srv/mysql-5.0.95
+
+RUN wget --no-verbose https://downloads.mysql.com/archives/get/p/23/file/mysql-5.0.95.tar.gz \
+    -O /srv/mysql.tar.gz
+RUN tar -xf /srv/mysql.tar.gz \
+    --one-top-level=mysql-5.0.95 \
+    --strip-components=1 \
+    -C /srv/
+
+RUN wget "https://gitweb.git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD" \
+    -O config.guess
+RUN chmod +x config.guess && ./config.guess
+
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-openssl \
+    --mount=type=cache,target=/var/lib/apt,id=cache-openssl \
+    DEBIAN_FRONTEND=noninteractive apt update  \
+    && apt install gcc-12 g++-12 make procps libncurses5-dev -y
+
+RUN CC=gcc-12 \
+    CXX=g++-12 \
+    CFLAGS="-std=gnu89" \
+    CXXFLAGS="-std=gnu++98 -fpermissive -Wno-narrowing" \
+    ./configure \
+    --prefix=/opt/mysql-5.0.95 \
+    --without-server
+
+RUN make
+RUN make install
 
 # php-5.2.17
 FROM build-gcc AS build-php
@@ -278,6 +310,7 @@ COPY --from=build-httpd /opt/httpd-2.2.3 /opt/httpd-2.2.3
 COPY --from=build-libxml2 /opt/libxml2-2.8.0 /opt/libxml2-2.8.0
 COPY --from=build-openssl /opt/openssl-0.9.8h /opt/openssl-0.9.8h
 COPY --from=build-curl /opt/curl-7.19.7 /opt/curl-7.19.7
+COPY --from=build-mysql /opt/mysql-5.0.95 /opt/mysql-5.0.95
 
 # ./configure --help
 RUN ./configure \
@@ -315,7 +348,10 @@ RUN ./configure \
     --with-png-dir=/usr \
     --with-jpeg-dir=/usr \
     --with-freetype-dir=/usr \
-    --with-zlib
+    --with-zlib \
+    --with-mysqli=/opt/mysql-5.0.95/bin/mysql_config \
+    --with-mysql=/opt/mysql-5.0.95 \
+    --with-pdo-mysql=/opt/mysql-5.0.95
 
 RUN make -j$(nproc)
 RUN make install
@@ -406,6 +442,7 @@ COPY --from=build-php /opt/php-5.2.17 /opt/php-5.2.17
 COPY --from=build-php /opt/httpd-2.2.3 /opt/httpd-2.2.3
 COPY --from=build-zendopcache /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/opcache.so /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/opcache.so
 COPY --from=build-xdebug /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so /opt/php-5.2.17/lib/php/extensions/no-debug-non-zts-20060613/xdebug.so
+COPY --from=build-mysql /opt/mysql-5.0.95 /opt/mysql-5.0.95
 
 # config libs
 RUN echo "/opt/oracle/instantclient" > /etc/ld.so.conf.d/oracle-instantclient.conf && \

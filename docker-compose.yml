@@ -3,6 +3,7 @@ services:
     image: ghcr.io/clagomess/docker-php-5.2
     links:
       - "oracle:oracle-host"
+      - "mysql:mysql-host"
     ports:
       - "8000:80"
       - "2200:22"
@@ -21,3 +22,13 @@ services:
       ORACLE_PASSWORD: "010203"
       APP_USER: "php"
       APP_USER_PASSWORD: "010203"
+
+  mysql:
+    image: docker.io/mariadb:latest
+    ports:
+      - "3306:3306"
+    environment:
+      MARIADB_ROOT_PASSWORD: "010203"
+      MARIADB_DATABASE: "test"
+      MARIADB_USER: "php"
+      MARIADB_PASSWORD: "010203"
