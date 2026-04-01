@@ -24,3 +24,15 @@ docker run --rm \
   -v .:/srv/htdocs \
   ghcr.io/clagomess/docker-php-5.2 
 ```
+
+## Build
+```bash
+docker build -t ghcr.io/clagomess/docker-php-5.2:gcc -f Dockerfile-040-gcc .
+docker build -t ghcr.io/clagomess/docker-php-5.2:httpd -f Dockerfile-050-httpd .
+docker build -t ghcr.io/clagomess/docker-php-5.2:libxml2 -f Dockerfile-060-libxml2 .
+docker build -t ghcr.io/clagomess/docker-php-5.2:openssl -f Dockerfile-070-openssl .
+docker build -t ghcr.io/clagomess/docker-php-5.2:curl -f Dockerfile-080-curl .
+docker build -t ghcr.io/clagomess/docker-php-5.2:oracle -f Dockerfile-090-oracle .
+docker build -t ghcr.io/clagomess/docker-php-5.2:mysql -f Dockerfile-100-mysql .
+docker build -t ghcr.io/clagomess/docker-php-5.2 -f Dockerfile-release .
+```

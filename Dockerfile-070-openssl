@@ -1,0 +1,28 @@
+FROM debian:13.1-slim AS build-openssl
+
+WORKDIR /srv/openssl-0.9.8h
+
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+    DEBIAN_FRONTEND=noninteractive apt update  \
+    && apt install wget gcc make -y
+
+RUN --mount=type=cache,target=/var/download,id=cache-download \
+    [ -f /var/download/openssl.tar.gz ] || wget --no-verbose https://github.com/openssl/openssl/releases/download/OpenSSL_0_9_8h/openssl-0.9.8h.tar.gz \
+    -O /var/download/openssl.tar.gz \
+    && tar -xf /var/download/openssl.tar.gz \
+           --one-top-level=openssl-0.9.8h \
+           --strip-components=1 \
+           -C /srv/
+
+RUN ./config \
+    --prefix=/opt/openssl-0.9.8h  \
+    --openssldir=/opt/openssl-0.9.8h/openssl \
+    shared
+
+RUN make
+RUN make install_sw
+
+FROM scratch AS release
+
+COPY --from=build-openssl /opt/openssl-0.9.8h /opt/openssl-0.9.8h

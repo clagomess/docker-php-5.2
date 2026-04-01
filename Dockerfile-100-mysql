@@ -1,0 +1,38 @@
+FROM debian:13.1-slim AS build-mysql
+
+WORKDIR /srv/mysql-5.0.95
+
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+    DEBIAN_FRONTEND=noninteractive apt update && \
+    apt install wget gcc-12 g++-12 make procps libncurses5-dev -y
+
+RUN --mount=type=cache,target=/var/download,id=cache-download \
+    [ -f /var/download/mysql.tar.gz ] || wget --no-verbose https://downloads.mysql.com/archives/get/p/23/file/mysql-5.0.95.tar.gz \
+    -O /var/download/mysql.tar.gz \
+    && tar -xf /var/download/mysql.tar.gz \
+       --one-top-level=mysql-5.0.95 \
+       --strip-components=1 \
+       -C /srv/
+
+RUN --mount=type=cache,target=/var/download,id=cache-download \
+    [ -f /var/download/config.guess ] || wget "https://gitweb.git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD" \
+    -O /var/download/config.guess \
+    && mv /var/download/config.guess . \
+    && chmod +x config.guess \
+    && ./config.guess
+
+RUN CC=gcc-12 \
+    CXX=g++-12 \
+    CFLAGS="-std=gnu89" \
+    CXXFLAGS="-std=gnu++98 -fpermissive -Wno-narrowing" \
+    ./configure \
+    --prefix=/opt/mysql-5.0.95 \
+    --without-server
+
+RUN make
+RUN make install
+
+FROM scratch AS release
+
+COPY --from=build-mysql /opt/mysql-5.0.95 /opt/mysql-5.0.95
