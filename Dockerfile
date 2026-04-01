@@ -256,8 +256,8 @@ RUN wget "https://gitweb.git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;
     -O config.guess
 RUN chmod +x config.guess && ./config.guess
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-openssl \
-    --mount=type=cache,target=/var/lib/apt,id=cache-openssl \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-mysql \
+    --mount=type=cache,target=/var/lib/apt,id=cache-mysql \
     DEBIAN_FRONTEND=noninteractive apt update  \
     && apt install gcc-12 g++-12 make procps libncurses5-dev -y
 
