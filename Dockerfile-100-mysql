@@ -16,7 +16,7 @@ RUN --mount=type=cache,target=/var/download,id=cache-download-mysql \
        -C /srv/
 
 RUN --mount=type=cache,target=/var/download,id=cache-download-mysql \
-    [ -f /var/download/config.guess ] || wget "https://gitweb.git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD" \
+    [ -f /var/download/config.guess ] || wget "https://git.savannah.gnu.org/cgit/config.git/plain/config.guess" \
     -O /var/download/config.guess \
     && mv /var/download/config.guess . \
     && chmod +x config.guess \
