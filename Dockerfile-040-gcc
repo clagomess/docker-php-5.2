@@ -2,8 +2,8 @@ FROM debian:13.1-slim AS build-gmp
 
 WORKDIR /srv/gmp-4.3.2
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-gcc \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt-gcc \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-gmp \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-gmp \
     DEBIAN_FRONTEND=noninteractive apt update \
     && apt install wget vim xz-utils gcc-12 m4 make -y
 
@@ -23,8 +23,8 @@ FROM debian:13.1-slim AS build-mpfr
 
 WORKDIR /srv/mpfr-2.4.2
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-gcc \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt-gcc \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-mpfr \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-mpfr \
     DEBIAN_FRONTEND=noninteractive apt update \
     && apt install wget vim xz-utils gcc make -y
 
@@ -47,8 +47,8 @@ FROM debian:13.1-slim AS build-mpc
 
 WORKDIR /srv/mpc-1.0.1
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-gcc \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt-gcc \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-mpc \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-mpc \
     DEBIAN_FRONTEND=noninteractive apt update \
     && apt install wget vim xz-utils gcc make -y
 
