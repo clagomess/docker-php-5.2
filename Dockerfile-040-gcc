@@ -106,8 +106,8 @@ RUN make install
 
 FROM debian:13.1-slim AS release
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-gcc \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt-gcc \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-release \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-release \
     DEBIAN_FRONTEND=noninteractive apt update \
     && apt install build-essential -y
 

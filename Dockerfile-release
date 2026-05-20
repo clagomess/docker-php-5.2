@@ -136,8 +136,8 @@ LABEL org.opencontainers.image.description="Functional docker image for legacy P
 
 WORKDIR /srv/htdocs
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-php \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt-php \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-release \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-release \
     DEBIAN_FRONTEND=noninteractive apt update \
     && apt install locales libltdl7 libaio1t64 libnsl2 libpq5 libgd3 libmcrypt4 ssh -y \
     && ln -s /usr/lib/$(uname -m)-linux-gnu/libaio.so.1t64 /usr/lib/$(uname -m)-linux-gnu/libaio.so.1
