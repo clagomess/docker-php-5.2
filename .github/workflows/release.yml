@@ -1,24 +1,179 @@
-name: release
+name: Release
+
 on:
   push:
-    branches:
-      - 'master'
+#    branches:
+#      - master
+
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force rebuild all images'
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      gcc: ${{ steps.flags.outputs.gcc }}
+      httpd: ${{ steps.flags.outputs.httpd }}
+      libxml2: ${{ steps.flags.outputs.libxml2 }}
+      openssl: ${{ steps.flags.outputs.openssl }}
+      curl: ${{ steps.flags.outputs.curl }}
+      oracle: ${{ steps.flags.outputs.oracle }}
+      mysql: ${{ steps.flags.outputs.mysql }}
+      release: ${{ steps.flags.outputs.release }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            gcc:
+              - 'Dockerfile-040-gcc'
+            httpd:
+              - 'Dockerfile-050-httpd'
+            libxml2:
+              - 'Dockerfile-060-libxml2'
+            openssl:
+              - 'Dockerfile-070-openssl'
+            curl:
+              - 'Dockerfile-080-curl'
+            oracle:
+              - 'Dockerfile-090-oracle'
+            mysql:
+              - 'Dockerfile-100-mysql'
+            release:
+              - 'Dockerfile-release'
+
+      - name: Compute build flags
+        id: flags
+        env:
+          FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          check_component() {
+            local tag=$1 changed=$2
+            if [ "$FORCE" = "true" ] || [ "$changed" = "true" ] \
+              || ! docker manifest inspect "ghcr.io/clagomess/docker-php-5.2:${tag}" > /dev/null 2>&1; then
+              echo "${tag}=true" >> $GITHUB_OUTPUT
+            else
+              echo "${tag}=false" >> $GITHUB_OUTPUT
+            fi
+          }
+          check_component gcc     "${{ steps.filter.outputs.gcc }}"
+          check_component httpd   "${{ steps.filter.outputs.httpd }}"
+          check_component libxml2 "${{ steps.filter.outputs.libxml2 }}"
+          check_component openssl "${{ steps.filter.outputs.openssl }}"
+          check_component curl    "${{ steps.filter.outputs.curl }}"
+          check_component oracle  "${{ steps.filter.outputs.oracle }}"
+          check_component mysql   "${{ steps.filter.outputs.mysql }}"
+          if [ "$FORCE" = "true" ] || [ "${{ steps.filter.outputs.release }}" = "true" ] \
+            || ! docker manifest inspect "ghcr.io/clagomess/docker-php-5.2:latest" > /dev/null 2>&1; then
+            echo "release=true" >> $GITHUB_OUTPUT
+          else
+            echo "release=false" >> $GITHUB_OUTPUT
+          fi
+
+  build-gcc:
+    needs: changes
+    if: needs.changes.outputs.gcc == 'true'
+    uses: ./.github/workflows/_build-component.yml
+    with:
+      dockerfile: Dockerfile-040-gcc
+      tag: gcc
+    secrets: inherit
+
+  build-httpd:
+    needs: changes
+    if: needs.changes.outputs.httpd == 'true'
+    uses: ./.github/workflows/_build-component.yml
+    with:
+      dockerfile: Dockerfile-050-httpd
+      tag: httpd
+    secrets: inherit
+
+  build-libxml2:
+    needs: changes
+    if: needs.changes.outputs.libxml2 == 'true'
+    uses: ./.github/workflows/_build-component.yml
+    with:
+      dockerfile: Dockerfile-060-libxml2
+      tag: libxml2
+    secrets: inherit
+
+  build-openssl:
+    needs: changes
+    if: needs.changes.outputs.openssl == 'true'
+    uses: ./.github/workflows/_build-component.yml
+    with:
+      dockerfile: Dockerfile-070-openssl
+      tag: openssl
+    secrets: inherit
+
+  # curl depends on openssl — rebuild if either Dockerfile changed
+  build-curl:
+    needs: [changes, build-openssl]
+    if: >-
+      always() && !failure() && !cancelled() &&
+      (needs.changes.outputs.curl == 'true' || needs.changes.outputs.openssl == 'true')
+    uses: ./.github/workflows/_build-component.yml
+    with:
+      dockerfile: Dockerfile-080-curl
+      tag: curl
+    secrets: inherit
+
+  build-oracle:
+    needs: changes
+    if: needs.changes.outputs.oracle == 'true'
+    uses: ./.github/workflows/_build-component.yml
+    with:
+      dockerfile: Dockerfile-090-oracle
+      tag: oracle
+    secrets: inherit
+
+  build-mysql:
+    needs: changes
+    if: needs.changes.outputs.mysql == 'true'
+    uses: ./.github/workflows/_build-component.yml
+    with:
+      dockerfile: Dockerfile-100-mysql
+      tag: mysql
+    secrets: inherit
+
+  build-release:
+    needs:
+      - changes
+      - build-gcc
+      - build-httpd
+      - build-libxml2
+      - build-openssl
+      - build-curl
+      - build-oracle
+      - build-mysql
+    if: >-
+      always() && !failure() && !cancelled() &&
+      (needs.changes.outputs.gcc == 'true' ||
+       needs.changes.outputs.httpd == 'true' ||
+       needs.changes.outputs.libxml2 == 'true' ||
+       needs.changes.outputs.openssl == 'true' ||
+       needs.changes.outputs.curl == 'true' ||
+       needs.changes.outputs.oracle == 'true' ||
+       needs.changes.outputs.mysql == 'true' ||
+       needs.changes.outputs.release == 'true')
     strategy:
       matrix:
-        os: [
-          ubuntu-24.04,
-          ubuntu-24.04-arm
-        ]
-
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.os }}
-
+    permissions:
+      packages: write
     steps:
       - uses: actions/checkout@v6
 
@@ -36,42 +191,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build
+      - name: Build and Push
         run: |
+          ARCH=$(uname -m)
           docker build \
-          -t ghcr.io/clagomess/docker-php-5.2:${{github.run_number}}-$(uname -m) \
-          -t docker.io/clagomess/docker-php-5.2:${{github.run_number}}-$(uname -m) \
-          -f Dockerfile .
-
-      - name: Push GHCR
-        run: |
-          docker push ghcr.io/clagomess/docker-php-5.2 --all-tags
-
-      - name: Push DockerHub
-        run: |
-          docker push docker.io/clagomess/docker-php-5.2 --all-tags
+            -t ghcr.io/clagomess/docker-php-5.2:${{ github.run_number }}-${ARCH} \
+            -t docker.io/clagomess/docker-php-5.2:${{ github.run_number }}-${ARCH} \
+            -f Dockerfile-release .
+          docker push ghcr.io/clagomess/docker-php-5.2:${{ github.run_number }}-${ARCH}
+          docker push docker.io/clagomess/docker-php-5.2:${{ github.run_number }}-${ARCH}
 
   push-manifest:
-    needs: build
+    needs: build-release
     runs-on: ubuntu-24.04
+    permissions:
+      packages: write
     strategy:
       matrix:
-        registry: [
-          docker.io,
-          ghcr.io
-        ]
-        include:
-          - registry: docker.io
-            image: ghcr.io/clagomess/docker-php-5.2
-          - registry: ghcr.io
-            image: docker.io/clagomess/docker-php-5.2
-
+        registry: [docker.io, ghcr.io]
     steps:
-      - name: Pull
-        run: |
-          docker pull ${{ matrix.image }}:${{github.run_number}}-x86_64
-          docker pull ${{ matrix.image }}:${{github.run_number}}-aarch64
-
       - name: Login DockerHub
         uses: docker/login-action@v4
         with:
@@ -86,16 +224,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Manifest
+      - name: Create and Push Manifest
         run: |
-          docker manifest create ${{ matrix.image }}:${{github.run_number}} \
-            ${{ matrix.image }}:${{github.run_number}}-x86_64 \
-            ${{ matrix.image }}:${{github.run_number}}-aarch64
-          docker manifest create ${{ matrix.image }}:latest \
-            ${{ matrix.image }}:${{github.run_number}}-x86_64 \
-            ${{ matrix.image }}:${{github.run_number}}-aarch64
-
-      - name: Push
-        run: |
-          docker manifest push --purge ${{ matrix.image }}:${{github.run_number}}
-          docker manifest push --purge ${{ matrix.image }}:latest
+          docker manifest create --amend \
+            ${{ matrix.registry }}/clagomess/docker-php-5.2:${{ github.run_number }} \
+            ${{ matrix.registry }}/clagomess/docker-php-5.2:${{ github.run_number }}-x86_64 \
+            ${{ matrix.registry }}/clagomess/docker-php-5.2:${{ github.run_number }}-aarch64
+          docker manifest create --amend \
+            ${{ matrix.registry }}/clagomess/docker-php-5.2:latest \
+            ${{ matrix.registry }}/clagomess/docker-php-5.2:${{ github.run_number }}-x86_64 \
+            ${{ matrix.registry }}/clagomess/docker-php-5.2:${{ github.run_number }}-aarch64
+          docker manifest push --purge \
+            ${{ matrix.registry }}/clagomess/docker-php-5.2:${{ github.run_number }}
+          docker manifest push --purge \
+            ${{ matrix.registry }}/clagomess/docker-php-5.2:latest
