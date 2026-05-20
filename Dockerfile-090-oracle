@@ -1,13 +1,13 @@
 FROM debian:13.1-slim AS build-oracle
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-oracle \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-oracle \
     DEBIAN_FRONTEND=noninteractive apt update && \
     apt install wget unzip -y
 
 RUN mkdir -p /opt/oracle/instantclient
 
-RUN --mount=type=cache,target=/var/download,id=cache-download \
+RUN --mount=type=cache,target=/var/download,id=cache-download-oracle \
     URL=$([ "$(uname -m)" = "x86_64" ] && \
       echo "https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linuxx64.zip" || \
       echo "https://download.oracle.com/otn_software/linux/instantclient/2326100/instantclient-basic-linux.arm64-23.26.1.0.0.zip"); \
@@ -17,7 +17,7 @@ RUN --mount=type=cache,target=/var/download,id=cache-download \
     && unzip /var/download/instantclient-basic.zip -d /var/download/instantclient-basic \
     && mv /var/download/instantclient-basic/instantclient_*/* /opt/oracle/instantclient/
 
-RUN --mount=type=cache,target=/var/download,id=cache-download \
+RUN --mount=type=cache,target=/var/download,id=cache-download-oracle \
     URL=$([ "$(uname -m)" = "x86_64" ] && \
       echo "https://download.oracle.com/otn_software/linux/instantclient/instantclient-sdk-linuxx64.zip" || \
       echo "https://download.oracle.com/otn_software/linux/instantclient/2326100/instantclient-sdk-linux.arm64-23.26.1.0.0.zip"); \

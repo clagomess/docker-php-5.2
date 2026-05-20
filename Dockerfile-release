@@ -2,12 +2,12 @@ FROM ghcr.io/clagomess/docker-php-5.2:gcc AS build-php
 
 WORKDIR /srv/php-5.2.17
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-php \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-php \
     DEBIAN_FRONTEND=noninteractive apt update && \
     apt install wget -y
 
-RUN --mount=type=cache,target=/var/download,id=cache-download \
+RUN --mount=type=cache,target=/var/download,id=cache-download-php \
     [ -f /var/download/php.tar.gz ] || wget --no-verbose https://museum.php.net/php5/php-5.2.17.tar.gz \
     -O /var/download/php.tar.gz \
     && tar -xf /var/download/php.tar.gz \
@@ -16,8 +16,8 @@ RUN --mount=type=cache,target=/var/download,id=cache-download \
     -C /srv/
 
 # oracle
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-php \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-php \
     DEBIAN_FRONTEND=noninteractive apt update && \
     apt install libaio-dev -y && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libaio.so.1t64 /usr/lib/$(uname -m)-linux-gnu/libaio.so.1
@@ -32,8 +32,8 @@ RUN ln -s /usr/lib/$(uname -m)-linux-gnu/libjpeg.so /usr/lib/ \
     && ln -s /usr/lib/$(uname -m)-linux-gnu/libpng.so /usr/lib/
 
 # other libs
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-php \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-php \
     DEBIAN_FRONTEND=noninteractive apt update && \
     apt install libpq-dev libgd-dev libmcrypt-dev libltdl-dev -y
 
@@ -88,7 +88,7 @@ RUN make -j$(nproc)
 RUN make install
 
 # xdebug
-RUN --mount=type=cache,target=/var/download,id=cache-download \
+RUN --mount=type=cache,target=/var/download,id=cache-download-xdebug \
     [ -f /var/download/xdebug.tar.gz ] || wget --no-verbose https://github.com/xdebug/xdebug/archive/refs/tags/XDEBUG_2_2_7.tar.gz \
     -O /var/download/xdebug.tar.gz \
     && tar -xf /var/download/xdebug.tar.gz \
@@ -106,7 +106,7 @@ RUN make -j$(nproc)
 RUN make install
 
 # zendopcache
-RUN --mount=type=cache,target=/var/download,id=cache-download \
+RUN --mount=type=cache,target=/var/download,id=cache-download-zendopcache \
     [ -f /var/download/zendopcache.tar.gz ] || wget --no-verbose https://pecl.php.net/get/zendopcache-7.0.5.tgz \
     -O /var/download/zendopcache.tar.gz \
     && tar -xf /var/download/zendopcache.tar.gz -C /srv/
@@ -136,8 +136,8 @@ LABEL org.opencontainers.image.description="Functional docker image for legacy P
 
 WORKDIR /srv/htdocs
 
-RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt \
-    --mount=type=cache,target=/var/lib/apt,id=cache-apt \
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-php \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-php \
     DEBIAN_FRONTEND=noninteractive apt update \
     && apt install locales libltdl7 libaio1t64 libnsl2 libpq5 libgd3 libmcrypt4 ssh -y \
     && ln -s /usr/lib/$(uname -m)-linux-gnu/libaio.so.1t64 /usr/lib/$(uname -m)-linux-gnu/libaio.so.1
