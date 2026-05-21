@@ -6,11 +6,6 @@ on:
 #      - master
 
   workflow_dispatch:
-    inputs:
-      force:
-        description: 'Force rebuild all images'
-        type: boolean
-        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,6 +14,8 @@ concurrency:
 jobs:
   changes:
     runs-on: ubuntu-24.04
+    permissions:
+      packages: read
     outputs:
       gcc: ${{ steps.flags.outputs.gcc }}
       httpd: ${{ steps.flags.outputs.httpd }}
@@ -32,6 +29,13 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - name: Login GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: dorny/paths-filter@v3
         id: filter
@@ -56,12 +60,10 @@ jobs:
 
       - name: Compute build flags
         id: flags
-        env:
-          FORCE: ${{ inputs.force || 'false' }}
         run: |
           check_component() {
             local tag=$1 changed=$2
-            if [ "$FORCE" = "true" ] || [ "$changed" = "true" ] \
+            if [ "$changed" = "true" ] \
               || ! docker manifest inspect "ghcr.io/clagomess/docker-php-5.2:${tag}" > /dev/null 2>&1; then
               echo "${tag}=true" >> $GITHUB_OUTPUT
             else
@@ -75,7 +77,7 @@ jobs:
           check_component curl    "${{ steps.filter.outputs.curl }}"
           check_component oracle  "${{ steps.filter.outputs.oracle }}"
           check_component mysql   "${{ steps.filter.outputs.mysql }}"
-          if [ "$FORCE" = "true" ] || [ "${{ steps.filter.outputs.release }}" = "true" ] \
+          if [ "${{ steps.filter.outputs.release }}" = "true" ] \
             || ! docker manifest inspect "ghcr.io/clagomess/docker-php-5.2:latest" > /dev/null 2>&1; then
             echo "release=true" >> $GITHUB_OUTPUT
           else
