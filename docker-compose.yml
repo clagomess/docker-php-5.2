@@ -4,6 +4,7 @@ services:
     links:
       - "oracle:oracle-host"
       - "mysql:mysql-host"
+      - "smtp4dev:smtp4dev-host"
     ports:
       - "8000:80"
       - "2200:22"
@@ -32,3 +33,9 @@ services:
       MARIADB_DATABASE: "test"
       MARIADB_USER: "php"
       MARIADB_PASSWORD: "010203"
+
+  smtp4dev:
+    image: docker.io/rnwood/smtp4dev
+    ports:
+      - "5080:80"
+      - "2525:25"

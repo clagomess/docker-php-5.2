@@ -139,7 +139,7 @@ WORKDIR /srv/htdocs
 RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-release \
     --mount=type=cache,target=/var/lib/apt,id=cache-apt-release \
     DEBIAN_FRONTEND=noninteractive apt update \
-    && apt install locales libltdl7 libaio1t64 libnsl2 libpq5 libgd3 libmcrypt4 ssh -y \
+    && apt install locales libltdl7 libaio1t64 libnsl2 libpq5 libgd3 libmcrypt4 ssh msmtp -y \
     && ln -s /usr/lib/$(uname -m)-linux-gnu/libaio.so.1t64 /usr/lib/$(uname -m)-linux-gnu/libaio.so.1
 
 # add locale
@@ -152,6 +152,9 @@ RUN locale-gen pt_BR.UTF-8 \
 RUN useradd -m -s /bin/bash -d /srv/htdocs php && \
     echo "php:php" | chpasswd && \
     usermod -aG www-data php
+
+# add /etc/
+COPY --chmod=644 --link etc /etc/
 
 # copy libs
 COPY --link --from=ghcr.io/clagomess/docker-php-5.2:oracle /opt/oracle /opt/oracle
