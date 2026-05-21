@@ -203,6 +203,7 @@ jobs:
 
   push-manifest:
     needs: build-release
+    if: ${{ always() && needs.build-release.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       packages: write
