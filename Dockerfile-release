@@ -1,0 +1,182 @@
+FROM ghcr.io/clagomess/docker-php-5.2:gcc AS build-php
+
+WORKDIR /srv/php-5.2.17
+
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-php \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-php \
+    DEBIAN_FRONTEND=noninteractive apt update && \
+    apt install wget -y
+
+RUN --mount=type=cache,target=/var/download,id=cache-download-php \
+    [ -f /var/download/php.tar.gz ] || wget --no-verbose https://museum.php.net/php5/php-5.2.17.tar.gz \
+    -O /var/download/php.tar.gz \
+    && tar -xf /var/download/php.tar.gz \
+    --one-top-level=php-5.2.17 \
+    --strip-components=1 \
+    -C /srv/
+
+# oracle
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-php \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-php \
+    DEBIAN_FRONTEND=noninteractive apt update && \
+    apt install libaio-dev -y && \
+    ln -s /usr/lib/$(uname -m)-linux-gnu/libaio.so.1t64 /usr/lib/$(uname -m)-linux-gnu/libaio.so.1
+
+COPY --link --from=ghcr.io/clagomess/docker-php-5.2:oracle /opt/oracle /opt/oracle
+
+RUN echo "/opt/oracle/instantclient" > /etc/ld.so.conf.d/oracle-instantclient.conf \
+    && ldconfig
+
+# jpg/png
+RUN ln -s /usr/lib/$(uname -m)-linux-gnu/libjpeg.so /usr/lib/ \
+    && ln -s /usr/lib/$(uname -m)-linux-gnu/libpng.so /usr/lib/
+
+# other libs
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-php \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-php \
+    DEBIAN_FRONTEND=noninteractive apt update && \
+    apt install libpq-dev libgd-dev libmcrypt-dev libltdl-dev -y
+
+COPY --link --from=ghcr.io/clagomess/docker-php-5.2:httpd /opt/httpd-2.2.3 /opt/httpd-2.2.3
+COPY --link --from=ghcr.io/clagomess/docker-php-5.2:libxml2 /opt/libxml2-2.8.0 /opt/libxml2-2.8.0
+COPY --link --from=ghcr.io/clagomess/docker-php-5.2:openssl /opt/openssl-0.9.8h /opt/openssl-0.9.8h
+COPY --link --from=ghcr.io/clagomess/docker-php-5.2:curl /opt/curl-7.19.7 /opt/curl-7.19.7
+COPY --link --from=ghcr.io/clagomess/docker-php-5.2:mysql /opt/mysql-5.0.95 /opt/mysql-5.0.95
+
+# ./configure --help
+RUN ./configure \
+    --host=$(uname -m)-unknown-linux-gnu \
+    --prefix=/opt/php-5.2.17 \
+    --with-gnu-ld \
+    --with-config-file-scan-dir=/opt/php-5.2.17/php.ini.d \
+    --with-apxs2=/opt/httpd-2.2.3/bin/apxs \
+    --with-libxml-dir=/opt/libxml2-2.8.0 \
+    --with-pgsql \
+    --with-pdo-pgsql \
+    --with-gd \
+    --with-curl=/opt/curl-7.19.7 \
+    --enable-soap \
+    --with-mcrypt \
+    --enable-mbstring \
+    --enable-calendar \
+    --enable-bcmath \
+    --enable-zip \
+    --enable-exif \
+    --enable-ftp \
+    --enable-shmop \
+    --enable-sockets \
+    --enable-sysvmsg \
+    --enable-sysvsem \
+    --enable-sysvshm \
+    --enable-wddx \
+    --enable-dba \
+    --with-openssl=/opt/openssl-0.9.8h \
+    --with-gettext \
+    --with-mime-magic=/opt/httpd-2.2.3/conf/magic \
+    --with-oci8=instantclient,/opt/oracle/instantclient \
+    --with-pdo-oci=instantclient,/opt/oracle,11.2 \
+    --with-ttf \
+    --with-png-dir=/usr \
+    --with-jpeg-dir=/usr \
+    --with-freetype-dir=/usr \
+    --with-zlib \
+    --with-mysqli=/opt/mysql-5.0.95/bin/mysql_config \
+    --with-mysql=/opt/mysql-5.0.95 \
+    --with-pdo-mysql=/opt/mysql-5.0.95
+
+RUN make -j$(nproc)
+RUN make install
+
+# xdebug
+RUN --mount=type=cache,target=/var/download,id=cache-download-xdebug \
+    [ -f /var/download/xdebug.tar.gz ] || wget --no-verbose https://github.com/xdebug/xdebug/archive/refs/tags/XDEBUG_2_2_7.tar.gz \
+    -O /var/download/xdebug.tar.gz \
+    && tar -xf /var/download/xdebug.tar.gz \
+    --one-top-level=xdebug-2.2.7 \
+    --strip-components=1 \
+    -C /srv/
+
+WORKDIR /srv/xdebug-2.2.7
+RUN /opt/php-5.2.17/bin/phpize
+RUN ./configure \
+    --build=$(uname -m)-unknown-linux-gnu \
+    --enable-xdebug \
+    --with-php-config=/opt/php-5.2.17/bin/php-config
+RUN make -j$(nproc)
+RUN make install
+
+# zendopcache
+RUN --mount=type=cache,target=/var/download,id=cache-download-zendopcache \
+    [ -f /var/download/zendopcache.tar.gz ] || wget --no-verbose https://pecl.php.net/get/zendopcache-7.0.5.tgz \
+    -O /var/download/zendopcache.tar.gz \
+    && tar -xf /var/download/zendopcache.tar.gz -C /srv/
+
+WORKDIR /srv/zendopcache-7.0.5
+RUN /opt/php-5.2.17/bin/phpize
+RUN ./configure \
+    --build=$(uname -m)-unknown-linux-gnu \
+    --with-php-config=/opt/php-5.2.17/bin/php-config
+RUN make -j$(nproc)
+RUN make install
+
+# opcache-status
+RUN mkdir -p /srv/opcache
+RUN wget --no-verbose https://raw.githubusercontent.com/rlerdorf/opcache-status/refs/heads/master/opcache.php \
+    -O /srv/opcache/index.php
+
+# misc
+RUN cp /srv/php-5.2.17/php.ini-dist /opt/php-5.2.17/lib/php.ini
+ADD --link ./soap-includes.tar.gz /opt/php-5.2.17/lib/php
+COPY --link php.ini.d /opt/php-5.2.17/php.ini.d/
+
+FROM debian:13.1-slim AS release
+
+LABEL org.opencontainers.image.source=https://github.com/clagomess/docker-php-5.2
+LABEL org.opencontainers.image.description="Functional docker image for legacy PHP 5.2 + HTTPD + XDEBUG"
+
+WORKDIR /srv/htdocs
+
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-release \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-release \
+    DEBIAN_FRONTEND=noninteractive apt update \
+    && apt install locales libltdl7 libaio1t64 libnsl2 libpq5 libgd3 libmcrypt4 ssh -y \
+    && ln -s /usr/lib/$(uname -m)-linux-gnu/libaio.so.1t64 /usr/lib/$(uname -m)-linux-gnu/libaio.so.1
+
+# add locale
+RUN locale-gen pt_BR.UTF-8 \
+&& echo "locales locales/locales_to_be_generated multiselect pt_BR.UTF-8 UTF-8" | debconf-set-selections \
+&& rm /etc/locale.gen \
+&& dpkg-reconfigure --frontend noninteractive locales
+
+# ssh user
+RUN useradd -m -s /bin/bash -d /srv/htdocs php && \
+    echo "php:php" | chpasswd && \
+    usermod -aG www-data php
+
+# copy libs
+COPY --link --from=ghcr.io/clagomess/docker-php-5.2:oracle /opt/oracle /opt/oracle
+COPY --link --from=ghcr.io/clagomess/docker-php-5.2:openssl /opt/openssl-0.9.8h /opt/openssl-0.9.8h
+COPY --link --from=ghcr.io/clagomess/docker-php-5.2:curl /opt/curl-7.19.7 /opt/curl-7.19.7
+COPY --link --from=ghcr.io/clagomess/docker-php-5.2:libxml2 /opt/libxml2-2.8.0 /opt/libxml2-2.8.0
+COPY --link --from=ghcr.io/clagomess/docker-php-5.2:mysql /opt/mysql-5.0.95 /opt/mysql-5.0.95
+COPY --link --from=build-php /srv/opcache /srv/opcache
+COPY --link --from=build-php /opt/php-5.2.17 /opt/php-5.2.17
+COPY --link --from=build-php /opt/httpd-2.2.3 /opt/httpd-2.2.3
+
+# config libs
+RUN echo "/opt/oracle/instantclient" > /etc/ld.so.conf.d/oracle-instantclient.conf && \
+    echo "/opt/openssl-0.9.8h/lib" > /etc/ld.so.conf.d/openssl.conf && \
+    echo "/opt/libxml2-2.8.0/lib" > /etc/ld.so.conf.d/libxml2.conf && \
+    ln -s /opt/curl-7.19.7/bin/curl /usr/bin/curl && \
+    ln -s /opt/php-5.2.17/bin/php /usr/bin/php && \
+    ldconfig
+
+# create log files
+RUN install -v -D -g www-data -o www-data /dev/null /var/log/php/error.log \
+    && install -v -D -g www-data -o www-data /dev/null /var/log/php/xdebug.log \
+    && install -v -D -g www-data -o www-data /dev/null /var/log/apache/access_log \
+    && install -v -D -g www-data -o www-data /dev/null /var/log/apache/error_log
+
+# entrypoint
+COPY ./init.sh /opt/init.sh
+CMD ["bash", "/opt/init.sh"]

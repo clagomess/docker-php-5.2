@@ -1,0 +1,23 @@
+FROM debian:13.1-slim AS build-libxml2
+
+WORKDIR /srv/libxml2-2.8.0
+
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-libxml2 \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-libxml2 \
+    DEBIAN_FRONTEND=noninteractive apt update  \
+    && apt install wget xz-utils gcc make -y
+
+RUN --mount=type=cache,target=/var/download,id=cache-download-libxml2 \
+    [ -f /var/download/libxml2.tar.gz ] || wget --no-verbose https://download.gnome.org/sources/libxml2/2.8/libxml2-2.8.0.tar.xz \
+    -O /var/download/libxml2.tar.gz \
+    && tar -xf /var/download/libxml2.tar.gz -C /srv/
+
+RUN ./configure \
+    --build=$(uname -m)-unknown-linux-gnu \
+    --prefix /opt/libxml2-2.8.0
+RUN make -j$(nproc)
+RUN make install
+
+FROM scratch AS release
+
+COPY --from=build-libxml2 /opt/libxml2-2.8.0 /opt/libxml2-2.8.0

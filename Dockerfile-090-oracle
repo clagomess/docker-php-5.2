@@ -1,0 +1,37 @@
+FROM debian:13.1-slim AS build-oracle
+
+RUN --mount=type=cache,target=/var/cache/apt,id=cache-apt-oracle \
+    --mount=type=cache,target=/var/lib/apt,id=cache-apt-oracle \
+    DEBIAN_FRONTEND=noninteractive apt update && \
+    apt install wget unzip -y
+
+RUN mkdir -p /opt/oracle/instantclient
+
+RUN --mount=type=cache,target=/var/download,id=cache-download-oracle \
+    URL=$([ "$(uname -m)" = "x86_64" ] && \
+      echo "https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linuxx64.zip" || \
+      echo "https://download.oracle.com/otn_software/linux/instantclient/2326100/instantclient-basic-linux.arm64-23.26.1.0.0.zip"); \
+    [ -f /var/download/instantclient-basic.zip ] || wget --no-verbose $URL \
+    -O /var/download/instantclient-basic.zip \
+    && rm -rf /var/download/instantclient-basic \
+    && unzip /var/download/instantclient-basic.zip -d /var/download/instantclient-basic \
+    && mv /var/download/instantclient-basic/instantclient_*/* /opt/oracle/instantclient/
+
+RUN --mount=type=cache,target=/var/download,id=cache-download-oracle \
+    URL=$([ "$(uname -m)" = "x86_64" ] && \
+      echo "https://download.oracle.com/otn_software/linux/instantclient/instantclient-sdk-linuxx64.zip" || \
+      echo "https://download.oracle.com/otn_software/linux/instantclient/2326100/instantclient-sdk-linux.arm64-23.26.1.0.0.zip"); \
+    [ -f /var/download/instantclient-sdk.zip ] || wget --no-verbose $URL \
+    -O /var/download/instantclient-sdk.zip \
+    && rm -rf /var/download/instantclient-sdk \
+    && unzip /var/download/instantclient-sdk.zip -d /var/download/instantclient-sdk \
+    && mv /var/download/instantclient-sdk/instantclient_*/* /opt/oracle/instantclient/
+
+RUN ln -s /opt/oracle/instantclient/libnnz.so /opt/oracle/instantclient/libnnz11.so && \
+    mkdir /opt/oracle/client && \
+    ln -s /opt/oracle/instantclient/sdk/include /opt/oracle/client/include && \
+    ln -s /opt/oracle/instantclient /opt/oracle/client/lib
+
+FROM scratch AS release
+
+COPY --from=build-oracle /opt/oracle /opt/oracle
