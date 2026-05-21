@@ -153,7 +153,7 @@ RUN useradd -m -s /bin/bash -d /srv/htdocs php && \
     echo "php:php" | chpasswd && \
     usermod -aG www-data php
 
-# add /etc/
+# add 'etc' config
 COPY --chmod=644 --link etc /etc/
 
 # copy libs
